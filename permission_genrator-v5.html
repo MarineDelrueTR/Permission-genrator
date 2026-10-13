@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reuters Permission Request Generator</title>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --tr-orange:     #D64000;
+      --tr-dark-gray:  #404040;
+      --tr-light-gray: #E3E3E3;
+      --tr-white:      #FFFFFF;
+      --tr-graphite:   #212223;
+      --surface-bg:    #F5F5F5;
+      --card-bg:       #FFFFFF;
+      --border-color:  #D0D0D0;
+      --text-primary:  #212223;
+      --text-secondary:#404040;
+      --text-muted:    #888888;
+      --focus-ring:    #D64000;
+      --success:       #2E7D32;
+      --warning:       #E65100;
+      --disabled-bg:   #ECECEC;
+      --disabled-text: #AAAAAA;
+      --space-xs:  4px;
+      --space-sm:  8px;
+      --space-md:  16px;
+      --space-lg:  24px;
+      --space-xl:  32px;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 8px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.12);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body { font-family: var(--font-sans); background: var(--surface-bg); color: var(--text-primary); line-height: 1.6; min-height: 100vh; }
+
+    .app-header {
+      background: var(--tr-graphite); color: var(--tr-white);
+      padding: var(--space-md) var(--space-xl);
+      display: flex; align-items: center; gap: var(--space-md);
+      box-shadow: var(--shadow-md); position: sticky; top: 0; z-index: 100;
+    }
+    .header-logo { display: flex; align-items: center; gap: var(--space-sm); text-decoration: none; flex-shrink: 0; }
+    .header-logo svg { width: 32px; height: 32px; }
+    .header-title { font-size: 1rem; font-weight: 600; color: var(--tr-white); letter-spacing: 0.01em; }
+    .header-subtitle { font-size: 0.75rem; color: rgba(255,255,255,0.6); font-weight: 400; }
+    .header-badge { margin-left: auto; background: var(--tr-orange); color: var(--tr-white); font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    .app-body { display: grid; grid-template-columns: 400px 1fr; gap: 0; min-height: calc(100vh - 64px); }
+
+    .panel-input {
+      background: var(--card-bg); border-right: 1px solid var(--border-color);
+      padding: var(--space-xl); overflow-y: auto;
+      height: calc(100vh - 64px); position: sticky; top: 64px;
+    }
+    .panel-output { padding: var(--space-xl); overflow-y: auto; }
+
+    .section-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--tr-orange);
+      margin-bottom: var(--space-md); padding-bottom: var(--space-xs);
+      border-bottom: 2px solid var(--tr-orange);
+    }
+    .section-group { margin-bottom: var(--space-xl); }
+    .form-field { margin-bottom: var(--space-md); }
+
+    .form-label {
+      display: flex; align-items: center; gap: var(--space-xs);
+      font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);
+      margin-bottom: var(--space-xs);
+    }
+    .form-label .required-star { color: var(--tr-orange); font-size: 0.9em; }
+    .form-label .optional-tag { font-weight: 400; font-size: 0.75em; color: var(--text-muted); background: var(--tr-light-gray); padding: 1px 6px; border-radius: 10px; }
+
+    .tooltip-trigger {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--tr-light-gray); color: var(--text-muted);
+      font-size: 0.65rem; font-weight: 700; cursor: help;
+      position: relative; border: none; flex-shrink: 0;
+    }
+    .tooltip-trigger:hover .tooltip-box { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+    .tooltip-box {
+      position: absolute; bottom: calc(100% + 6px); left: 50%;
+      transform: translateX(-50%) translateY(4px);
+      background: var(--tr-graphite); color: var(--tr-white);
+      font-size: 0.72rem; font-weight: 400; padding: 6px 10px;
+      border-radius: var(--radius-sm); white-space: normal; width: 200px;
+      line-height: 1.4; opacity: 0; pointer-events: none;
+      transition: opacity 0.15s, transform 0.15s; z-index: 200; box-shadow: var(--shadow-md);
+    }
+    .tooltip-box::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--tr-graphite); }
+
+    .form-select, .form-input, .form-textarea, .form-date {
+      width: 100%; padding: 9px 12px;
+      border: 1.5px solid var(--border-color); border-radius: var(--radius-md);
+      font-family: var(--font-sans); font-size: 0.88rem;
+      color: var(--text-primary); background: var(--tr-white);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none; -webkit-appearance: none;
+    }
+    .form-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23404040' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer;
+    }
+    .form-select:focus, .form-input:focus, .form-textarea:focus, .form-date:focus {
+      outline: none; border-color: var(--tr-orange); box-shadow: 0 0 0 3px rgba(214,64,0,0.12);
+    }
+    .form-select:disabled, .form-input:disabled, .form-textarea:disabled, .form-date:disabled {
+      background: var(--disabled-bg); color: var(--disabled-text); cursor: not-allowed; border-color: var(--border-color);
+    }
+    .form-textarea { resize: vertical; min-height: 80px; }
+    .form-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: var(--space-xs); line-height: 1.4; }
+
+    .perm-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+    .perm-type-card { position: relative; }
+    .perm-type-card input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .perm-type-label {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; padding: var(--space-sm) var(--space-xs);
+      border: 1.5px solid var(--border-color); border-radius: var(--radius-md);
+      cursor: pointer; text-align: center; transition: all 0.15s;
+      background: var(--tr-white); min-height: 72px;
+    }
+    .perm-type-label:hover { border-color: var(--tr-orange); background: rgba(214,64,0,0.03); }
+    .perm-type-card input[type="radio"]:checked + .perm-type-label { border-color: var(--tr-orange); background: rgba(214,64,0,0.06); box-shadow: 0 0 0 2px rgba(214,64,0,0.2); }
+    .perm-type-card.disabled .perm-type-label,
+    .perm-type-card input[type="radio"]:disabled + .perm-type-label { background: var(--disabled-bg); color: var(--disabled-text); cursor: not-allowed; border-color: var(--border-color); opacity: 0.6; }
+    .perm-type-icon { font-size: 1.3rem; line-height: 1; }
+    .perm-type-name { font-size: 0.72rem; font-weight: 700; color: var(--text-secondary); line-height: 1.2; }
+    .perm-type-desc { font-size: 0.65rem; color: var(--text-muted); line-height: 1.2; }
+
+    .date-field-wrapper { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.25s ease, opacity 0.25s ease, margin-bottom 0.25s ease; margin-bottom: 0; }
+    .date-field-wrapper.visible { max-height: 120px; opacity: 1; margin-bottom: var(--space-md); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: var(--space-xs); padding: 10px var(--space-md); border: none;
+      border-radius: var(--radius-md); font-family: var(--font-sans);
+      font-size: 0.88rem; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; text-decoration: none; white-space: nowrap;
+    }
+    .btn:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+    .btn-primary { background: var(--tr-orange); color: var(--tr-white); width: 100%; padding: 12px; font-size: 0.95rem; }
+    .btn-primary:hover { background: #b83700; }
+    .btn-primary:active { background: #a03000; transform: translateY(1px); }
+    .btn-secondary { background: var(--tr-light-gray); color: var(--text-secondary); }
+    .btn-secondary:hover { background: #d0d0d0; }
+    .btn-outline { background: transparent; color: var(--tr-orange); border: 1.5px solid var(--tr-orange); }
+    .btn-outline:hover { background: rgba(214,64,0,0.06); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-icon { font-size: 1rem; line-height: 1; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+    /* ── Output cards ── */
+    .output-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-lg); margin-bottom: var(--space-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .output-card-header { display: flex; align-items: center; justify-content: space-between; padding: var(--space-md) var(--space-lg); border-bottom: 1px solid var(--border-color); background: #FAFAFA; }
+    .output-card-title { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: var(--space-sm); }
+    .output-card-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tr-orange); flex-shrink: 0; }
+    .output-card-body { padding: var(--space-lg); }
+
+    .preview-textarea {
+      width: 100%; min-height: 280px; padding: var(--space-md);
+      border: 1.5px solid var(--border-color); border-radius: var(--radius-md);
+      font-family: var(--font-sans); font-size: 0.88rem; line-height: 1.7;
+      color: var(--text-primary); background: var(--tr-white);
+      resize: vertical; transition: border-color 0.15s;
+    }
+    .preview-textarea:focus { outline: none; border-color: var(--tr-orange); box-shadow: 0 0 0 3px rgba(214,64,0,0.12); }
+
+    .preview-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; color: var(--text-muted); text-align: center; gap: var(--space-md); }
+    .preview-empty-icon { font-size: 3rem; opacity: 0.4; }
+    .preview-empty-text { font-size: 0.88rem; max-width: 260px; line-height: 1.5; }
+
+    /* ── Human review banner ── */
+    .review-banner {
+      display: flex; align-items: flex-start; gap: var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      background: #FFFBF5; border: 1.5px solid #F0C080;
+      border-radius: var(--radius-md); margin-bottom: var(--space-md);
+    }
+    .review-banner.approved { background: #F0FAF0; border-color: #80C880; }
+    .review-checkbox-wrap { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+    .review-checkbox-wrap input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--success); cursor: pointer; flex-shrink: 0; margin-top: 1px; }
+    .review-label-text { font-size: 0.88rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; }
+    .review-label-sub { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+    .review-status-icon { font-size: 1.4rem; flex-shrink: 0; margin-left: auto; align-self: center; }
+
+    /* ── Export row — 2 buttons only ── */
+    .export-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); }
+    .export-row .btn { flex-direction: column; gap: 4px; padding: var(--space-sm) var(--space-xs); min-height: 64px; font-size: 0.82rem; }
+    .export-row .btn .btn-icon { font-size: 1.3rem; }
+
+    /* ── PNG preview ── */
+    .png-preview-wrapper { background: #F0F0F0; border-radius: var(--radius-md); padding: var(--space-md); text-align: center; overflow: hidden; }
+    .png-preview-wrapper canvas { max-width: 100%; border: 1px solid var(--border-color); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); }
+
+    /* ── Status badge ── */
+    .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .status-badge.ready { background: rgba(46,125,50,0.12); color: var(--success); }
+    .status-badge.pending { background: rgba(214,64,0,0.1); color: var(--tr-orange); }
+
+    /* ── Toast ── */
+    .toast-container { position: fixed; bottom: var(--space-xl); right: var(--space-xl); z-index: 1000; display: flex; flex-direction: column; gap: var(--space-sm); pointer-events: none; }
+    .toast { background: var(--tr-graphite); color: var(--tr-white); padding: 10px 16px; border-radius: var(--radius-md); font-size: 0.85rem; font-weight: 500; box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: var(--space-sm); opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; max-width: 320px; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-left: 3px solid #4CAF50; }
+    .toast.error   { border-left: 3px solid #F44336; }
+    .toast.info    { border-left: 3px solid var(--tr-orange); }
+
+    /* ── Language availability ── */
+    .lang-availability { margin-top: var(--space-xs); font-size: 0.72rem; color: var(--text-muted); }
+    .lang-availability .avail-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
+    .avail-dot.has { background: var(--success); }
+    .avail-dot.missing { background: #ccc; }
+
+    /* ── Meta info ── */
+    .meta-info { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: var(--space-md); flex-wrap: wrap; margin-top: var(--space-sm); }
+    .meta-info span { display: flex; align-items: center; gap: 4px; }
+
+
+    .native-select-source{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important}.fav-wrap{position:relative;margin-bottom:var(--space-lg)}.fav-head,.combo-row{display:flex;gap:6px;align-items:stretch}.fav-toggle{flex:1;justify-content:space-between;border:1.5px solid var(--border-color);background:#fff;color:var(--text-secondary)}.fav-count{background:var(--tr-orange);color:#fff;border-radius:12px;padding:0 7px}.fav-panel,.combo-list{position:absolute;z-index:350;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--border-color);border-radius:var(--radius-md);box-shadow:var(--shadow-lg);max-height:300px;overflow:auto;padding:6px}.fav-panel{top:calc(100% + 6px)}.fav-group{font-size:.7rem;text-transform:uppercase;color:var(--tr-orange);font-weight:700;padding:7px 5px}.fav-item{display:flex;border-bottom:1px solid #eee}.fav-apply{flex:1;border:0;background:transparent;text-align:left;padding:8px;font:inherit;font-size:.8rem;overflow-wrap:anywhere}.fav-remove{border:0;background:transparent;padding:7px;color:var(--text-muted)}.fav-empty{font-size:.78rem;color:var(--text-muted);padding:10px;line-height:1.4}.combo{position:relative;flex:1;min-width:0}.combo-input{padding-right:55px}.combo-clear{position:absolute;right:28px;top:50%;transform:translateY(-50%);border:0;background:transparent}.combo-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:.7rem}.combo-option,.combo-empty{padding:8px 10px;border-radius:4px;font-size:.84rem}.combo-option{cursor:pointer}.combo-option.hi,.combo-option[aria-selected=true]{background:rgba(214,64,0,.09);color:var(--tr-orange)}.star{width:40px;min-width:40px;border:1.5px solid var(--border-color);border-radius:var(--radius-md);background:#fff;color:var(--text-muted);display:flex;align-items:center;justify-content:center}.star svg{width:19px;fill:none;stroke:currentColor;stroke-width:1.8}.star.on{color:var(--tr-orange);border-color:var(--tr-orange)}.star.on svg{fill:var(--tr-orange)}.star:disabled{opacity:.4}.combo-fav{display:flex;gap:8px;align-items:center;margin-top:8px}.combo-fav small{color:var(--text-muted);line-height:1.25}.fav-help .tooltip-box{top:calc(100% + 8px);bottom:auto;left:auto;right:0;width:min(260px,calc(100vw - 48px));transform:translateY(-4px)}.fav-help:hover .tooltip-box,.fav-help:focus .tooltip-box{opacity:1;pointer-events:auto;transform:translateY(0)}.fav-help .tooltip-box::after{top:auto;bottom:100%;left:auto;right:3px;transform:none;border:5px solid transparent;border-bottom-color:var(--tr-graphite)}.tooltip-trigger:focus .tooltip-box{opacity:1;pointer-events:auto}
+    /* Keep the Favourites help text fully visible inside the settings panel. */
+    .fav-wrap .fav-help .tooltip-box {
+      position: fixed;
+      top: 112px;
+      left: 42px;
+      right: auto;
+      bottom: auto;
+      width: min(310px, calc(100vw - 48px));
+      max-width: calc(100vw - 48px);
+      transform: translateY(-4px);
+      white-space: normal;
+      overflow-wrap: anywhere;
+      z-index: 1000;
+    }
+    .fav-wrap .fav-help:hover .tooltip-box,
+    .fav-wrap .fav-help:focus .tooltip-box,
+    .fav-wrap .fav-help:focus-visible .tooltip-box { transform: translateY(0); }
+    .fav-wrap .fav-help .tooltip-box::after { display: none; }
+    @media (max-width: 480px) {
+      .fav-wrap .fav-help .tooltip-box { top: 96px; left: 16px; width: calc(100vw - 32px); max-width: calc(100vw - 32px); }
+    }
+    /* Compact, visually distinct favourites controls */
+    .fav-wrap {
+      margin-bottom: var(--space-md);
+      --fav-accent: #526d73;
+      --fav-accent-soft: rgba(82, 109, 115, 0.09);
+      --fav-border: rgba(82, 109, 115, 0.34);
+    }
+    .fav-head { justify-content: flex-start; align-items: center; gap: 5px; }
+    .fav-toggle {
+      flex: 0 1 auto;
+      width: auto;
+      min-height: 30px;
+      padding: 5px 9px;
+      gap: 8px;
+      border: 1px solid var(--fav-border);
+      border-radius: 999px;
+      background: var(--fav-accent-soft);
+      color: var(--fav-accent);
+      font-size: 0.74rem;
+      font-weight: 600;
+      box-shadow: none;
+    }
+    .fav-toggle:hover,
+    .fav-toggle:focus-visible {
+      border-color: var(--fav-accent);
+      background: rgba(82, 109, 115, 0.14);
+      color: #3e5960;
+    }
+    .fav-count {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9px;
+      background: var(--fav-accent);
+      color: #fff;
+      font-size: 0.64rem;
+    }
+    .fav-help {
+      width: 15px;
+      height: 15px;
+      background: var(--fav-accent-soft);
+      color: var(--fav-accent);
+    }
+    .fav-panel { border-color: var(--fav-border); }
+    .fav-group { color: var(--fav-accent); }
+    .fav-apply:hover,
+    .fav-apply:focus-visible,
+    .fav-remove:hover,
+    .fav-remove:focus-visible { color: var(--fav-accent); }
+    .combo-row { align-items: center; gap: 5px; }
+    #lang-star, #combo-star { display: none !important; }
+    .star {
+      width: 28px;
+      min-width: 28px;
+      height: 28px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: 50%;
+      background: transparent;
+      color: #829196;
+      box-shadow: none;
+    }
+    .star svg { width: 15px; height: 15px; stroke-width: 1.7; }
+    .star:hover:not(:disabled),
+    .star:focus-visible:not(:disabled) {
+      color: var(--fav-accent);
+      border-color: var(--fav-border);
+      background: var(--fav-accent-soft);
+    }
+    .star.on {
+      color: var(--fav-accent);
+      border-color: var(--fav-border);
+      background: var(--fav-accent-soft);
+    }
+    .star.on svg { fill: var(--fav-accent); }
+    .star:disabled { opacity: 0.3; }
+    .combo-fav {
+      width: fit-content;
+      max-width: 100%;
+      margin-top: 5px;
+      margin-left: auto;
+      gap: 4px;
+      color: var(--fav-accent);
+    }
+    .combo-fav .star { width: 25px; min-width: 25px; height: 25px; }
+    .combo-fav .star svg { width: 14px; height: 14px; }
+    .combo-fav small {
+      max-width: 235px;
+      color: #66777c;
+      font-size: 0.68rem;
+      text-align: right;
+    }
+    #permission-section {
+      margin-bottom: 8px;
+    }
+    #favourite-question {
+      opacity: 1;
+      filter: none;
+      pointer-events: auto;
+      margin-top: 0;
+      margin-bottom: var(--space-lg);
+    }
+    .favourite-question {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 0;
+      padding: 6px 9px;
+      border: 1px solid var(--fav-border);
+      border-radius: var(--radius-md);
+      background: var(--fav-accent-soft);
+      color: #53666b;
+    }
+    .favourite-question-text {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.72rem;
+      line-height: 1.4;
+    }
+    .favourite-question-actions {
+      display: flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 7px;
+    }
+    .favourite-question-text[hidden],
+    .favourite-choice[hidden] { display: none !important; }
+    .favourite-confirmation {
+      color: var(--fav-accent);
+      font-size: 0.7rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .favourite-choice {
+      min-width: 38px;
+      padding: 4px 8px;
+      border: 1px solid var(--fav-border);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--fav-accent);
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .favourite-choice:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+    @media (max-width: 480px) {
+      .favourite-question { align-items: flex-start; flex-wrap: wrap; }
+      .favourite-question-actions { margin-left: auto; }
+    }
+    .favourite-choice:hover,
+    .favourite-choice:focus-visible,
+    .favourite-choice.is-selected {
+      border-color: var(--fav-accent);
+      background: var(--fav-accent);
+      color: #fff;
+      outline: none;
+    }
+    .section-locked {
+      position: relative;
+      opacity: 0.48;
+      filter: grayscale(0.2);
+      transition: opacity 0.18s ease, filter 0.18s ease;
+    }
+    .section-locked > * { pointer-events: none; }
+    .section-unlocked { opacity: 1; filter: none; }
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .app-body { grid-template-columns: 1fr; }
+      .panel-input { height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border-color); }
+    }
+    @media (max-width: 480px) {
+      .app-header { padding: var(--space-sm) var(--space-md); }
+      .panel-input, .panel-output { padding: var(--space-md); }
+      .perm-type-grid { grid-template-columns: 1fr 1fr; }
+      .export-row { grid-template-columns: 1fr 1fr; }
+    }
+
+    .panel-input::-webkit-scrollbar, .panel-output::-webkit-scrollbar { width: 6px; }
+    .panel-input::-webkit-scrollbar-track, .panel-output::-webkit-scrollbar-track { background: transparent; }
+    .panel-input::-webkit-scrollbar-thumb, .panel-output::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+
+    .text-muted { color: var(--text-muted); }
+    .text-sm { font-size: 0.8rem; }
+    .mt-sm { margin-top: var(--space-sm); }
+  </style>
+</head>
+
+<body>
+
+  <header class="app-header" role="banner">
+    <div class="header-logo" aria-label="Reuters">
+      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="50" cy="8"  r="5.5" fill="#D64000"/>
+        <circle cx="67" cy="12" r="4.5" fill="#D64000"/>
+        <circle cx="80" cy="23" r="5"   fill="#D64000"/>
+        <circle cx="87" cy="38" r="4"   fill="#D64000"/>
+        <circle cx="87" cy="55" r="3.5" fill="#D64000"/>
+        <circle cx="80" cy="70" r="4"   fill="#D64000"/>
+        <circle cx="67" cy="81" r="5"   fill="#D64000"/>
+        <circle cx="50" cy="87" r="5.5" fill="#D64000"/>
+        <circle cx="33" cy="81" r="5"   fill="#D64000"/>
+        <circle cx="20" cy="70" r="4"   fill="#D64000"/>
+        <circle cx="13" cy="55" r="3.5" fill="#D64000"/>
+        <circle cx="13" cy="38" r="4"   fill="#D64000"/>
+        <circle cx="20" cy="23" r="5"   fill="#D64000"/>
+        <circle cx="33" cy="12" r="4.5" fill="#D64000"/>
+        <circle cx="50" cy="22" r="3.5" fill="#D64000"/>
+        <circle cx="62" cy="27" r="3"   fill="#D64000"/>
+        <circle cx="70" cy="38" r="3.5" fill="#D64000"/>
+        <circle cx="72" cy="50" r="3"   fill="#D64000"/>
+        <circle cx="70" cy="62" r="3"   fill="#D64000"/>
+        <circle cx="62" cy="72" r="3.5" fill="#D64000"/>
+        <circle cx="50" cy="76" r="3.5" fill="#D64000"/>
+        <circle cx="38" cy="72" r="3"   fill="#D64000"/>
+        <circle cx="30" cy="62" r="3"   fill="#D64000"/>
+        <circle cx="28" cy="50" r="3"   fill="#D64000"/>
+        <circle cx="30" cy="38" r="3.5" fill="#D64000"/>
+        <circle cx="38" cy="27" r="3"   fill="#D64000"/>
+      </svg>
+    </div>
+    <div>
+      <div class="header-title">Permission Request Generator</div>
+      <div class="header-subtitle">Content Clearance Workflow Tool</div>
+    </div>
+    <span class="header-badge">Internal Tool</span>
+  </header>
+
+  <main class="app-body" role="main">
+
+    <!-- LEFT PANEL -->
+    <aside class="panel-input" aria-label="Permission settings">
+
+<div class="fav-wrap"><div class="fav-head"><button class="btn fav-toggle" id="fav-toggle" type="button" aria-expanded="false" aria-controls="fav-panel"><span>☆ Favourites</span><span class="fav-count" id="fav-count">0</span></button><button class="tooltip-trigger fav-help" type="button" aria-label="Favourites help">?<span class="tooltip-box" role="tooltip">If you regularly send permissions in a particular language, save your most frequently used choices by clicking the star after selecting the language and, if needed, the restriction type.</span></button></div><div class="fav-panel" id="fav-panel" hidden></div></div>
+      <div class="section-group">
+        <div class="section-label">1 — Language</div>
+        <div class="form-field">
+          <label class="form-label" for="lang-select">
+            Select Language <span class="required-star" aria-hidden="true">*</span>
+            <button class="tooltip-trigger" type="button" aria-label="Language help">?
+              <span class="tooltip-box" role="tooltip">Choose the language for the permission text. Options unavailable for the selected permission type will be greyed out.</span>
+            </button>
+          </label>
+          <select class="native-select-source" id="lang-select" tabindex="-1" aria-hidden="true">
+            <option value="">— Select language —</option>
+            <option value="ENGLISH">English</option>
+            <option value="FRENCH">French (Français)</option>
+            <option value="SPANISH">Spanish (Español)</option>
+            <option value="MANDARIN">Mandarin (普通话)</option>
+            <option value="ARABIC">Arabic (العربية)</option>
+            <option value="HEBREW">Hebrew (עברית)</option>
+            <option value="THAI">Thai (ภาษาไทย)</option>
+            <option value="JAPANESE">Japanese (日本語)</option>
+            <option value="ITALIAN">Italian (Italiano)</option>
+            <option value="GERMAN">German (Deutsch)</option>
+            <option value="INDONESIAN">Indonesian (Bahasa Indonesia)</option>
+            <option value="MALAY">Malay (Bahasa Melayu)</option>
+            <option value="ROMANIAN">Romanian (Română)</option>
+            <option value="SERBIAN">Serbian (Srpski)</option>
+            <option value="TURKISH">Turkish (Türkçe)</option>
+            <option value="KOREAN">Korean (한국어)</option>
+            <option value="DARI">Dari (دری)</option>
+            <option value="PASHTO">Pashto (پښتو)</option>
+            <option value="PORTUGUESE">Portuguese (Português)</option>
+            <option value="RUSSIAN">Russian (Русский)</option>
+            <option value="UKRAINIAN">Ukrainian (Українська)</option>
+            <option value="BOSNIAN">Bosnian (Bosanski)</option>
+            <option value="BULGARIAN">Bulgarian (Български)</option>
+            <option value="CROATIAN">Croatian (Hrvatski)</option>
+            <option value="CZECH">Czech (Čeština)</option>
+            <option value="DANISH">Danish (Dansk)</option>
+            <option value="GREEK">Greek (Ελληνικά)</option>
+            <option value="HUNGARIAN">Hungarian (Magyar)</option>
+            <option value="LATVIAN">Latvian (Latviešu)</option>
+            <option value="LITHUANIAN">Lithuanian (Lietuvių)</option>
+            <option value="CATALAN">Catalan (Català)</option>
+            <option value="MONTENEGRIN">Montenegrin (Crnogorski)</option>
+            <option value="NORWEGIAN">Norwegian (Norsk)</option>
+            <option value="POLISH">Polish (Polski)</option>
+            <option value="KURDISH_SORANI">Kurdish Sorani (کوردی)</option>
+            <option value="KHMER">Khmer / Cambodian (ខ្មែរ)</option>
+            <option value="HINDI">Hindi (हिन्दी)</option>
+            <option value="BURMESE">Burmese / Myanmar (မြန်မာဘာသာ)</option>
+            <option value="TAGALOG">Tagalog / Filipino (Filipino)</option>
+            <option value="VIETNAMESE">Vietnamese (Tiếng Việt)</option>
+          </select><div class="combo-row"><div class="combo" id="combo"><input class="form-input combo-input" id="lang-search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="lang-list" aria-label="Search and select a language" placeholder="Search or select a language" autocomplete="off"><button class="combo-clear" id="lang-clear" type="button" aria-label="Clear language">×</button><span class="combo-arrow" aria-hidden="true">▼</span><div class="combo-list" id="lang-list" role="listbox" hidden></div></div><button class="star" id="lang-star" type="button" disabled></button></div>
+          <div class="lang-availability" id="lang-availability" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <div class="section-group section-locked" id="permission-section" aria-disabled="true">
+        <div class="section-label">2 — Permission Type</div>
+        <div class="form-field">
+          <label class="form-label">Select Type <span class="required-star" aria-hidden="true">*</span>
+            <button class="tooltip-trigger" type="button" aria-label="Permission type help">?
+              <span class="tooltip-box" role="tooltip">Access All: Full perpetual rights including resale and archive. No Resales: Perpetual rights but no archive/resale. Time Limited: Rights expire after a set date. Drone: Special wording for drone-captured content.</span>
+            </button>
+          </label>
+          <div class="perm-type-grid" role="radiogroup" aria-label="Permission type">
+            <div class="perm-type-card" id="card-ACCESS_ALL">
+              <input type="radio" name="perm-type" id="pt-access-all" value="ACCESS_ALL" />
+              <label class="perm-type-label" for="pt-access-all">
+                <span class="perm-type-icon">🌐</span>
+                <span class="perm-type-name">Access All</span>
+                <span class="perm-type-desc">Full perpetual rights</span>
+              </label>
+            </div>
+            <div class="perm-type-card" id="card-NO_RESALES">
+              <input type="radio" name="perm-type" id="pt-no-resales" value="NO_RESALES" />
+              <label class="perm-type-label" for="pt-no-resales">
+                <span class="perm-type-icon">🚫</span>
+                <span class="perm-type-name">No Resales</span>
+                <span class="perm-type-desc">No Resales / Archive</span>
+              </label>
+            </div>
+            <div class="perm-type-card" id="card-TIME_LIMITED">
+              <input type="radio" name="perm-type" id="pt-time-limited" value="TIME_LIMITED" />
+              <label class="perm-type-label" for="pt-time-limited">
+                <span class="perm-type-icon">⏳</span>
+                <span class="perm-type-name">Time Limited</span>
+                <span class="perm-type-desc">Rights expire by date</span>
+              </label>
+            </div>
+            <div class="perm-type-card" id="card-DRONE">
+              <input type="radio" name="perm-type" id="pt-drone" value="DRONE" />
+              <label class="perm-type-label" for="pt-drone">
+                <span class="perm-type-icon">🚁</span>
+                <span class="perm-type-name">Drone</span>
+                <span class="perm-type-desc">Drone content wording</span>
+              </label>
+            </div>
+          </div><div class="combo-fav" aria-hidden="true"><button class="star" id="combo-star" type="button" disabled></button><small id="combo-fav-label"></small></div>
+</div>
+        <div class="date-field-wrapper" id="date-field-wrapper">
+          <div class="form-field">
+            <label class="form-label" for="date-limit">Expiry Date <span class="required-star" aria-hidden="true">*</span></label>
+            <input type="date" class="form-date" id="date-limit" aria-label="Permission expiry date" />
+            <div class="form-hint">After this date, no new uses may be made of the Content.</div>
+          </div>
+        </div>
+      </div>
+
+                <div class="favourite-question" id="favourite-question">
+            <div class="favourite-question-text" id="favourite-question-text">Save this combination to Favourites for next time?</div>
+            <div class="favourite-question-actions">
+              <button class="favourite-choice" id="favourite-yes" type="button">Yes</button>
+              <span class="favourite-confirmation" id="favourite-confirmation" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+
+      <div class="section-group section-locked" id="content-section" aria-disabled="true">
+        <div class="section-label">3 — Content Details</div>
+        <div class="form-field">
+          <label class="form-label" for="person-name">Person Name / Title <span class="optional-tag">optional</span></label>
+          <input type="text" class="form-input" id="person-name" placeholder="e.g. John Smith, Senior Editor" autocomplete="off" />
+          <div class="form-hint">Left blank, placeholder {NAME} will appear in the output.</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="content-desc">Content Description <span class="optional-tag">optional</span>
+            <button class="tooltip-trigger" type="button" aria-label="Content description help">?
+              <span class="tooltip-box" role="tooltip">Describe the specific video, photo, or other content being licensed.</span>
+            </button>
+          </label>
+          <textarea class="form-textarea" id="content-desc" placeholder="e.g. video of flooding in downtown Bangkok showing rescue operations" rows="3"></textarea>
+          <div class="form-hint">Left blank, placeholder {CONTENT} will appear.</div>
+        </div>
+      </div>
+
+      <div class="section-group">
+        <div class="section-label">4 — Generate</div>
+        <button class="btn btn-primary" id="btn-generate" type="button">
+          <span class="btn-icon">⚡</span> Generate Permission Text
+        </button>
+        <div class="form-hint mt-sm" id="generate-hint">Select a language and permission type to generate.</div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT PANEL -->
+    <section class="panel-output" aria-label="Permission output">
+
+      <!-- A: PNG Preview -->
+      <div class="output-card" id="png-preview-card" style="display:none;">
+        <div class="output-card-header">
+          <div class="output-card-title"><span class="dot" aria-hidden="true"></span>PNG Preview</div>
+          <span class="status-badge pending">Live Preview</span>
+        </div>
+        <div class="output-card-body">
+          <div class="png-preview-wrapper">
+            <canvas id="permission-canvas" aria-label="PNG preview of permission document"></canvas>
+          </div>
+          <div class="form-hint mt-sm">This preview updates automatically as you edit the text below.</div>
+        </div>
+      </div>
+
+      <!-- B: Editable Text -->
+      <div class="output-card">
+        <div class="output-card-header">
+          <div class="output-card-title"><span class="dot" aria-hidden="true"></span>Permission Text</div>
+          <span class="status-badge pending" id="preview-status">Awaiting Input</span>
+        </div>
+        <div class="output-card-body">
+          <div class="preview-empty" id="preview-empty" aria-live="polite">
+            <div class="preview-empty-icon" aria-hidden="true">📄</div>
+            <div class="preview-empty-text">Fill in the form on the left and click <strong>Generate Permission Text</strong> to see your permission request here.</div>
+          </div>
+          <textarea class="preview-textarea" id="preview-textarea" style="display:none;" aria-label="Generated permission text — editable" spellcheck="true"></textarea>
+          <div class="meta-info" id="meta-info" style="display:none;">
+            <span>🌐 <span id="meta-lang">—</span></span>
+            <span>🔖 <span id="meta-type">—</span></span>
+            <span>🕐 <span id="meta-timestamp">—</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- C: Human Review -->
+      <div class="output-card" id="review-card" style="display:none;">
+        <div class="output-card-header">
+          <div class="output-card-title"><span class="dot" aria-hidden="true"></span>Human Review</div>
+        </div>
+        <div class="output-card-body">
+          <div class="review-banner" id="review-banner">
+            <label class="review-checkbox-wrap" for="chk-reviewed">
+              <input type="checkbox" id="chk-reviewed" />
+              <div>
+                <div class="review-label-text">Reviewed by human</div>
+                <div class="review-label-sub">Tick to confirm you have read and verified the permission text above before exporting.</div>
+              </div>
+            </label>
+            <span class="review-status-icon" id="review-status-icon">⏳</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- D: Export — Copy + PNG only -->
+      <div class="output-card" id="actions-card" style="display:none;">
+        <div class="output-card-header">
+          <div class="output-card-title"><span class="dot" aria-hidden="true"></span>Export &amp; Share</div>
+          <span id="export-lock-label" style="color:#E65100;font-size:0.75rem;">🔒 Approve above to unlock</span>
+        </div>
+        <div class="output-card-body">
+          <div class="export-row">
+            <button class="btn btn-outline" id="btn-copy" type="button" disabled>
+              <span class="btn-icon">📋</span>
+              Copy Text
+            </button>
+            <button class="btn btn-secondary" id="btn-png" type="button" disabled>
+              <span class="btn-icon">🖼️</span>
+              Download PNG
+            </button>
+          </div>
+          <div class="form-hint mt-sm">Edit the text above — exports will reflect your changes.</div>
+          <div style="margin-top: var(--space-md); text-align:right;">
+            <button class="btn btn-sm btn-secondary" id="btn-clear" type="button">🗑️ Clear &amp; Reset</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <div class="toast-container" id="toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+  <script>
+    /* ============================================================
+       TEMPLATES DATABASE
+       ============================================================ */
+    const TEMPLATES = {
+  "ENGLISH": {
+    "ACCESS_ALL": "You {NAME} represent and warrant that you own the {CONTENT} (the \"Content\"), or that you are the authorized licensee of the copyright owner, and you have not promised or provided the Content to any other persons or entities for their exclusive use.\n\nYou agree that Reuters may publish and distribute the Content to Reuters' customers, which include other news organizations around the world, for their further use, display and publication.\n\nSpecifically, you give Reuters and its licensees the perpetual right to publish, republish, display, edit, prepare derivative works of and distribute the Content, in any form throughout the world, in all languages and in all media, whether now known or hereafter devised, including but not limited to mobile, internet, television and dramatic productions.\n\nYou further agree that Reuters may license and sell the Content in its online archive to others who may publish, display and redistribute the Content anywhere in the world.",
+    "NO_RESALES": "You {NAME} represent and warrant that you own the {CONTENT} (the \"Content\"), or that you are the authorized licensee of the copyright owner, and you have not promised or provided the Content to any other persons or entities for their exclusive use.\n\nYou agree that Reuters may publish and distribute the Content to Reuters' customers, which include other news organizations around the world, for their further use, display and publication.\n\nSpecifically, you give Reuters and its licensees the perpetual right to publish, republish, display, edit, prepare derivative works of and distribute the Content, in any form throughout the world, in all languages and in all media, whether now known or hereafter devised, including but not limited to mobile, internet, television and dramatic productions.",
+    "TIME_LIMITED": "You {NAME} represent and warrant that you own the {CONTENT} (the \"Content\"), or that you are the authorized licensee of the copyright owner, and you have not promised or provided the Content to any other persons or entities for their exclusive use.\n\nYou agree that Reuters may publish and distribute the Content to Reuters' customers, which include other news organizations around the world, for their further use, display and publication.\n\nSpecifically, you give Reuters and its licensees the right to publish, republish, display, edit, prepare derivative works of and distribute the Content, in any form throughout the world, in all languages and in all media, whether now known or hereafter devised, including but not limited to mobile, internet, television and dramatic productions, provided that, after {DATE}, no new uses will be made of the Content.\n\nThe right to host and display the Content, as used or published before that date, is perpetual.",
+    "DRONE": "You represent and warrant that the submitted Content is, to the best of your knowledge, an accurate and truthful portrayal of the events portrayed therein, and that none of your newsgathering for the Content involved the breach of any laws or the violation of the rights of any third party, including injury to persons or property.\n\nYou agree to indemnify and hold Reuters harmless from and against any claims, losses, damages and/or expenses, including reasonable attorneys' fees, arising out of the breach of the representation and warranties made in this paragraph."
+  },
+  "FRENCH": {
+    "ACCESS_ALL": "Vous {NAME} attestez et garantissez que vous détenez {CONTENT} (le « Contenu »), ou que vous êtes le titulaire de la licence autorisé du détenteur des droits d'auteur, et que vous n'avez pas promis ou fourni le Contenu à toute autre personne physique ou morale pour usage exclusif.\n\nVous convenez que Reuters peut publier et distribuer le Contenu aux clients de Reuters, qui incluent d'autres organisations d'information partout dans le monde, à des fins d'utilisation, d'affichage et de publication. Plus précisément, vous accordez à Reuters et à ses titulaires de licence le droit perpétuel de publier, republier, afficher, modifier, préparer des œuvres dérivées et distribuer le Contenu, sous toute forme partout dans le monde, en toutes langues et sur tous supports, connus aujourd'hui ou conçus à l'avenir, y compris, mais sans s'y limiter, la technologie mobile, Internet, la télévision et les productions dramatiques.\n\nVous convenez également que Reuters peut accorder sous licence et vendre le Contenu dans ses archives en ligne à des tiers susceptibles de publier, afficher et redistribuer le Contenu partout dans le monde.",
+    "NO_RESALES": "Vous {NAME} attestez et garantissez que vous détenez {CONTENT} (le « Contenu »), ou que vous êtes le titulaire de la licence autorisé du détenteur des droits d'auteur, et que vous n'avez pas promis ou fourni le Contenu à toute autre personne physique ou morale pour usage exclusif.\n\nVous convenez que Reuters peut publier et distribuer le Contenu aux clients de Reuters, qui incluent d'autres organisations d'information partout dans le monde, à des fins d'utilisation, d'affichage et de publication. Plus précisément, vous accordez à Reuters et à ses titulaires de licence le droit perpétuel de publier, republier, afficher, modifier, préparer des œuvres dérivées et distribuer le Contenu, sous toute forme partout dans le monde, en toutes langues et sur tous supports, connus aujourd'hui ou conçus à l'avenir, y compris, mais sans s'y limiter, la technologie mobile, Internet, la télévision et les productions dramatiques.",
+    "TIME_LIMITED": "Vous {NAME} attestez et garantissez que vous détenez {CONTENT} (le « Contenu »), ou que vous êtes le titulaire de la licence autorisé du détenteur des droits d'auteur, et que vous n'avez pas promis ou fourni le Contenu à toute autre personne physique ou morale pour usage exclusif.\n\nVous convenez que Reuters peut publier et distribuer le Contenu aux clients de Reuters, qui incluent d'autres organisations d'information partout dans le monde, à des fins d'utilisation, d'affichage et de publication. Plus précisément, vous accordez à Reuters et à ses titulaires de licence le droit de publier, republier, afficher, modifier, préparer des œuvres dérivées et distribuer le Contenu, sous toute forme partout dans le monde, en toutes langues et sur tous supports, connus aujourd'hui ou conçus à l'avenir, y compris, mais sans s'y limiter, la technologie mobile, Internet, la télévision et les productions dramatiques, sous réserve que, après le {DATE}, il ne soit fait aucun nouvel usage du Contenu.\n\nLe droit d'héberger et d'afficher le Contenu, tel qu'utilisé ou publié avant cette date, est perpétuel.",  
+    "DRONE": "Vous déclarez et garantissez que le contenu soumis est, au meilleur de votre connaissance, une représentation précise et véridique des événements qui y sont décrits, et qu'aucune de vos collectes d'informations pour le contenu n'implique une violation de lois ou une violation des droits. de tout tiers, y compris les dommages aux personnes ou aux biens - Vous acceptez d’indemniser et de dégager Reuters de toute responsabilité concernant toute réclamation, perte, dommage et/ou dépense, y compris les honoraires d’avocat raisonnables, découlant de la violation des déclarations et garanties faites dans ce paragraphe."
+  },
+  "SPANISH": {
+    "ACCESS_ALL": "Usted {NAME} declara y garantiza que es propietario del/de la {CONTENT} (el \"Contenido\"), o que es el licenciatario autorizado del propietario de los derechos de autor y que no ha facilitado ni ha prometido facilitar el Contenido a ninguna otra persona ni entidad para su uso exclusivo.\n\nUsted acepta que Reuters pueda publicar y distribuir el Contenido a los clientes de Reuters, como otras organizaciones de noticias en el mundo, para su posterior uso, exhibición y publicación. En concreto, usted otorga a Reuters y a sus licenciatarios el derecho perpetuo a publicar, republicar, exhibir, editar, preparar obras derivadas y distribuir el Contenido, en cualquier forma y a nivel internacional, en todos los idiomas y en todos los soportes, ya sean conocidos actualmente o concebidos en el futuro, entre ellos dispositivos móviles, Internet, televisión y producciones dramáticas.\n\nAdemás, usted acepta que Reuters pueda licenciar y vender el Contenido en sus archivos en línea a otras personas, que podrán publicar, exhibir y redistribuir el Contenido en cualquier parte del mundo.",
+    "NO_RESALES": "Usted {NAME} declara y garantiza que es propietario del/de la {CONTENT} (el \"Contenido\"), o que es el licenciatario autorizado del propietario de los derechos de autor y que no ha facilitado ni ha prometido facilitar el Contenido a ninguna otra persona ni entidad para su uso exclusivo.\n\nUsted acepta que Reuters pueda publicar y distribuir el Contenido a los clientes de Reuters, como otras organizaciones de noticias en el mundo, para su posterior uso, exhibición y publicación. En concreto, usted otorga a Reuters y a sus licenciatarios el derecho perpetuo a publicar, republicar, exhibir, editar, preparar obras derivadas y distribuir el Contenido, en cualquier forma y a nivel internacional, en todos los idiomas y en todos los soportes, ya sean conocidos actualmente o concebidos en el futuro, entre ellos dispositivos móviles, Internet, televisión y producciones dramáticas.",
+    "TIME_LIMITED": "Usted {NAME} declara y garantiza que es propietario del/de la {CONTENT} (el \"Contenido\"), o que es el licenciatario autorizado del propietario de los derechos de autor y que no ha facilitado ni ha prometido facilitar el Contenido a ninguna otra persona ni entidad para su uso exclusivo.\n\nUsted acepta que Reuters pueda publicar y distribuir el Contenido a los clientes de Reuters, como otras organizaciones de noticias en el mundo, para su posterior uso, exhibición y publicación. En concreto, usted otorga a Reuters y a sus licenciatarios el derecho perpetuo a publicar, republicar, exhibir, editar, preparar obras derivadas y distribuir el Contenido, en cualquier forma y a nivel internacional, en todos los idiomas y en todos los soportes, ya sean conocidos actualmente o concebidos en el futuro, entre ellos dispositivos móviles, Internet, televisión y producciones dramáticas, con la condición de que, después del {DATE}, no se haga ningún uso nuevo del Contenido.\n\nEl derecho a alojar y mostrar el Contenido, tal como se utilizó o publicó antes de esa fecha, es perpetuo.",
+    "DRONE": "Usted declara y garantiza que ninguna de sus recopilaciones de noticias para el Contenido implicó la infracción de alguna ley o la violación de los derechos de cualquier tercero, incluidos daños a personas o a la propiedad. Acepta indemnizar y eximir de responsabilidad a Reuters por cualquier reclamo, pérdida, daño o gasto, incluido el pago de honorarios razonables a abogados, que surjan del incumplimiento de la declaración y las garantías que se establecen en este párrafo."
+  },
+  "MANDARIN": {
+    "ACCESS_ALL": "您 {NAME} 声明并保证您拥有 {CONTENT}（“内容”），或您是版权所有者的获授权被许可人，并且您未向任何其他人士或实体承诺或提供内容以供其专用。\n\n您同意 Reuters 可向其客户（包括全球其他新闻机构）发布和分发内容，以供进一步使用、展示和发布。具体而言，您向 Reuters 及其被许可人授予在世界各地以任何形式、各种语言及现在已知或以后设计的各种媒体（包括但不限于手机、互联网、电视和戏剧作品）发布、再发布、展示、编辑、分发内容及制作衍生作品的永久权利。\n\n您进一步同意 Reuters 可将其在线存档中的内容许可和出售给可能在世界任何地方发布、展示和再分发内容的其他人。",
+    "NO_RESALES": "您 {NAME} 声明并保证您拥有 {CONTENT}（“内容”），或您是版权所有者的获授权被许可人，并且您未向任何其他人士或实体承诺或提供内容以供其专用。\n\n您同意 Reuters 可向其客户（包括全球其他新闻机构）发布和分发内容，以供进一步使用、展示和发布。具体而言，您向 Reuters 及其被许可人授予在世界各地以任何形式、各种语言及现在已知或以后设计的各种媒体（包括但不限于手机、互联网、电视和戏剧作品）发布、再发布、展示、编辑、分发内容及制作衍生作品的永久权利。",
+    "TIME_LIMITED": "您 {NAME} 声明并保证您拥有 {CONTENT}（“内容”），或您是版权所有者的获授权被许可人，并且您未向任何其他人士或实体承诺或提供内容以供其专用。\n\n您同意 Reuters 可向其客户（包括全球其他新闻机构）发布和分发内容，以供进一步使用、展示和发布。具体而言，您向 Reuters 及其被许可人授予在世界各地以任何形式、各种语言及现在已知或以后设计的各种媒体（包括但不限于手机、互联网、电视和戏剧作品）发布、再发布、展示、编辑、分发内容及制作衍生作品的权利，但前提是在 {DATE} 之后，不会对内容进行新的使用 托管和展示在该日期之前使用或发布的内容的权利为永久权利。",
+    "DRONE": "您代表并保证就您所知，该 内容 是对 内容 中事件准确真实的反映。该视频材料的收集没有违反任何法律或第三方权益，包括人身财产伤害。\n\n您同意使路透社免责于任何索赔，损失，破坏和/或开支，包括由于违反此协议中代表和保证内容而产生的合理律师费。"
+  },
+  "ARABIC": {
+    "ACCESS_ALL": "تقر وتضمن أنت {NAME} بأنك تملك {CONTENT} (\"المحتوى\")، أو أنك المرخص له المعتمد التابع لصاحب حقوق النشر والتأليف، وأنك لم تتعهد بمنح، أو تقم بمنح، المحتوى إلى أي أشخاص أو كيانات أخرى لاستخدامها بشكل حصري.\n\nتوافق على أنه يجوز لوكالة رويترز نشر المحتوى وتوزيعه على عملائها بما يشمل وكالات الأنباء الأخرى في جميع أنحاء العالم، وذلك بغرض استخدام المحتوى وعرضه ونشره مرة أخرى. وعلى وجه التحديد، تمنح وكالة رويترز والمرخص لهم التابعين لها الحق الدائم في نشر وإعادة نشر المحتوى وعرضه وتحريره وإعداد أعمال مشتقة منه وتوزيعه بأي شكل من الأشكال في جميع أنحاء العالم وبجميع اللغات وفي جميع وسائل الإعلام سواءً المعروفة الآن أو التي سيتم ابتكارها لاحقًا بما في ذلك، على سبيل المثال لا الحصر، الهاتف الجوال والإنترنت والتلفزيون وأعمال الإنتاج الدرامي.\n\nوتوافق أيضًا على أنه يجوز لوكالة رويترز ترخيص المحتوى وبيعه في أرشيف الإنترنت خاصتها إلى الآخرين الذين يجوز لهم نشر المحتوى وعرضه وإعادة توزيعه في أي مكان حول العالم.",
+    "NO_RESALES": "تقر وتضمن أنت {NAME} بأنك تملك {CONTENT} (\"المحتوى\")، أو أنك المرخص له المعتمد التابع لصاحب حقوق النشر والتأليف، وأنك لم تتعهد بمنح، أو تقم بمنح، المحتوى إلى أي أشخاص أو كيانات أخرى لاستخدامها بشكل حصري.\n\nتوافق على أنه يجوز لوكالة رويترز نشر المحتوى وتوزيعه على عملائها بما يشمل وكالات الأنباء الأخرى في جميع أنحاء العالم، وذلك بغرض استخدام المحتوى وعرضه ونشره مرة أخرى. وعلى وجه التحديد، تمنح وكالة رويترز والمرخص لهم التابعين لها الحق الدائم في نشر وإعادة نشر المحتوى وعرضه وتحريره وإعداد أعمال مشتقة منه وتوزيعه بأي شكل من الأشكال في جميع أنحاء العالم وبجميع اللغات وفي جميع وسائل الإعلام سواءً المعروفة الآن أو التي سيتم ابتكارها لاحقًا بما في ذلك، على سبيل المثال لا الحصر، الهاتف الجوال والإنترنت والتلفزيون وأعمال الإنتاج الدرامي.",
+    "TIME_LIMITED": "تقر وتضمن أنت {NAME} بأنك تملك {CONTENT} (\"المحتوى\")، أو أنك المرخص له المعتمد التابع لصاحب حقوق النشر والتأليف، وأنك لم تتعهد بمنح، أو تقم بمنح، المحتوى إلى أي أشخاص أو كيانات أخرى لاستخدامها بشكل حصري.\n\nتوافق على أنه يجوز لوكالة رويترز نشر المحتوى وتوزيعه على عملائها بما يشمل وكالات الأنباء الأخرى في جميع أنحاء العالم، وذلك بغرض استخدام المحتوى وعرضه ونشره مرة أخرى. وعلى وجه التحديد، تمنح وكالة رويترز والمرخص لهم التابعين لها الحق في نشر وإعادة نشر المحتوى وعرضه وتحرير وإعداد أعمال مشتقة منه وتوزيعه، بأي شكل من الأشكال في جميع أنحاء العالم وبجميع اللغات وفي جميع وسائل الإعلام سواءً المعروفة الآن أو التي سيتم ابتكارها لاحقًا بما في ذلك، على سبيل المثال لا الحصر، الهاتف الجوال والإنترنت والتلفزيون وأعمال الإنتاج الدرامي، شريطة أنه بعد {DATE}، يجب عدم استخدام المحتوى أي استخدامات جديدة.\n\nويعتبر الحق في استضافة المحتوى وعرضه، على النحو الذي اُستخدم أو نُشر به قبل ذلك التاريخ، حقًا دائمًا.",  
+    "DRONE": "أنت تقر وتضمن أن المحتوى المقدم، حسب مدى علمك، يمثل تصويراً دقيقاً وصادقاً للوقائع المصورة فيه وأن أيا من نشاطك في التغطية الإخبارية لهذا المحتوى لا ينطوي على خرق أي قوانين أو انتهاك حقوق أي طرفٍ ثالثٍ بما في ذلك إلحاق الضرر بالأشخاص والممتلكات.\n\nوتوافق على التعويض وإعفاء رويترز من تحمل مسؤولية أي مطالبات أو خسائر أو تعويضات و/أو مصروفات بما في ذلك مصاريف المحامين المعقولة الناتجة عن الإخلال بالإقرار والضمانات الواردة في هذه الفقرة"
+  },
+  "THAI": {
+    "ACCESS_ALL": "ณ {NAME} ยืนยันว่าคุณเป็นเจ้าของลิขสิทธิ์ หรือเป็นตัวแทนที่ได้รับมอบอำนาจจากเจ้าของลิขสิทธิ์วีดีโอ/ภาพถ่าย {CONTENT} ตามที่ปรากฏในลิ้งค์: {CONTENT} และคุณยืนยันว่ายังไม่ได้มอบลิขสิทธิ์นี้ให้กับผู้อื่นหรือหน่วยงานใดไปก่อนหน้านี้แล้ว\n\nคุณอนุญาตให้สำนักข่าวรอยเตอร์ เผยแพร่ภาพดังกล่าวนี้ในสื่ออื่น ๆ รวมถึงองค์กรสื่อต่างประเทศอื่น ๆ ที่อยู่ทั่วทุกมุมโลกและรับข่าวสารจากรอยเตอร์\n\nรอยเตอร์สามารถนำภาพดังกล่าวไปตัดต่อ เพื่อประกอบการทำข่าวในภาษาต่าง ๆ และรูปแบบต่าง ๆ เพื่อให้เข้ากับเนื้อหา และสามารถเพื่อเผยแพร่ทางสื่อบนโทรศัพท์มือถือ อินเตอร์เน็ต โทรทัศน์ โดยไม่จำกัดเฉพาะรูปแบบสื่อที่มีอยู่แล้ว หรือสื่อที่อาจจะเกิดขึ้นใหม่ในอนาคต\n\nคุณยินยอมให้รอยเตอร์เก็บภาพดังกล่าวไว้ในคลังภาพของเรา โดยที่รอยเตอร์อาจจะมีการขายภาพดังกล่าวให้กับผู้อื่นที่อยากจะเผยแพร่ภาพดังกล่าวในอนาคตในสถานที่ใดก็ได้ในโลก",
+    "NO_RESALES": "ณ {NAME} ยืนยันว่าคุณเป็นเจ้าของลิขสิทธิ์ หรือเป็นตัวแทนที่ได้รับมอบอำนาจจากเจ้าของลิขสิทธิ์วีดีโอ/ภาพถ่าย {CONTENT} ตามที่ปรากฏในลิ้งค์: {CONTENT} และคุณยืนยันว่ายังไม่ได้มอบลิขสิทธิ์นี้ให้กับผู้อื่นหรือหน่วยงานใดไปก่อนหน้านี้แล้ว\n\nคุณอนุญาตให้สำนักข่าวรอยเตอร์ เผยแพร่ภาพดังกล่าวนี้ในสื่ออื่น ๆ รวมถึงองค์กรสื่อต่างประเทศอื่น ๆ ที่อยู่ทั่วทุกมุมโลกและรับข่าวสารจากรอยเตอร์\n\nรอยเตอร์สามารถนำภาพดังกล่าวไปตัดต่อ เพื่อประกอบการทำข่าวในภาษาต่าง ๆ และรูปแบบต่าง ๆ เพื่อให้เข้ากับเนื้อหา และสามารถเพื่อเผยแพร่ทางสื่อบนโทรศัพท์มือถือ อินเตอร์เน็ต โทรทัศน์ โดยไม่จำกัดเฉพาะรูปแบบสื่อที่มีอยู่แล้ว หรือสื่อที่อาจจะเกิดขึ้นใหม่ในอนาคต",
+    "TIME_LIMITED": "คุณ {NAME} ยืนยันว่าคุณเป็นเจ้าของลิขสิทธิ์ หรือเป็นตัวแทนที่ได้รับมอบอำนาจจากเจ้าของลิขสิทธิ์วีดีโอ/ภาพถ่าย {CONTENT} ตามที่ปรากฏในลิ้งค์: {CONTENT} และคุณยืนยันว่ายังไม่ได้มอบลิขสิทธิ์นี้ให้กับผู้อื่นหรือหน่วยงานไดไปก่อนหน้านี้แล้ว\n\nคุณอนุญาตให้สำนักข่าวรอยเตอร์ เผยแพร่ภาพดังกล่าวนี้ในสื่ออื่น ๆ รวมถึงองค์กรสื่อต่างประเทศอื่น ๆ ที่อยู่ทั่วทุกมุมโลกและรับข่าวสารจากรอยเตอร์ รอยเตอร์สามารถจะนำภาพดังกล่าวไปตัดต่อ เพื่อประกอบการทำข่าวในภาษาต่าง ๆ และรูปแบบต่าง ๆ เพื่อให้เข้ากับเนื้อหา และสามารถเพื่อเผยแพร่ทางสื่อบนโทรศัพท์มือถือ อินเตอร์เน็ต โทรทัศน์ โดยไม่จำกัดเฉพาะรูปแบบสื่อที่มีอยู่แล้วหรือสื่อที่อาจจะเกิดขึ้นใหม่ในอนาคต แต่หลังจากวันที่ {DATE} จะไม่มีการเผยแพร่ภาพเหตุการณ์ดังกล่าวอีก\n\nสื่อที่นำภาพดังกล่าวไปใช้ก่อนวันที่สิ้นสุดการได้รับอนุญาตสามารถยึดการอนุญาตก่อนหน้านี้ โดยไม่ต้องถอดภาพดังกล่าวลงจากสื่อของตน",
+    "DRONE": "คุณยืนยันว่าภาพที่คุณส่งมาให้เราเป็นเรื่องที่เกิดขึ้นจริง ไม่มีการปรุงแต่งแต่อย่างใด และการทำข่าวหรือการได้มาของภาพดังกล่าวนี้ ไม่ได้ละเมิดกฏหมาย หรือละเมิดสิทธิผู้อื่น หรือทำให้ผู้อื่นบาดเจ็บหรือทรัพย์สินเสียหาย\n\nคุณยินยอมที่จะรับผิดชอบค่าเสียหายที่อาจจะเกิดขึ้นเอง โดยรอยเตอร์จะไม่มีส่วนเกี่ยวของในการจ่ายค่าสินไหมทดแทน หรือค่าใช้จ่ายใด ๆ รวมถึงค่าจ้างทนายความ ที่เกิดจากฟ้องร้องที่เกี่ยวกับภาพดังกล่าวนี้"
+  },
+  "JAPANESE": {
+    "NO_RESALES": "コンテンツ所有者 {NAME} は、自身が {CONTENT}（以下、「本件コンテンツ」）を所有しているかその著作権所有者の認定ライセンシーであること、ならびに他の人物または事業体に本件コンテンツの専属的利用を約束または許可していないことを表明し保証します。\n\nコンテンツ所有者は、ロイターが本件コンテンツをロイターの顧客に対して公開・配信する可能性があること、当該顧客には世界各地の報道機関が含まれ、これらがさらに本件コンテンツを使用、表示、公開することについて合意します。コンテンツ所有者は、世界各地においてあらゆる形式および言語、ならびにモバイル、インターネット、テレビ、ドラマ制作物などのあらゆる媒体（既知のものであるか将来考案されるものかを問いません）を用いて本件コンテンツの公開、再公開、表示、編集、二次著作物の作成および配信を行う無期限の権利を、ロイターおよびそのライセンシーに付与します。",
+    "ACCESS_ALL": "コンテンツ所有者 {NAME} は、自身が {CONTENT}（以下、「本件コンテンツ」）を所有しているかその著作権所有者の認定ライセンシーであること、ならびに他の人物または事業体に本件コンテンツの専属的利用を約束または許可していないことを表明し保証します。\n\nコンテンツ所有者は、ロイターが本件コンテンツをロイターの顧客に対して公開・配信する可能性があること、当該顧客には世界各地の報道機関が含まれ、これらがさらに本件コンテンツを使用、表示、公開することについて合意します。コンテンツ所有者は、世界各地においてあらゆる形式および言語、ならびにモバイル、インターネット、テレビ、ドラマ制作物などのあらゆる媒体（既知のものであるか将来考案されるものかを問いません）を用いて本件コンテンツの公開、再公開、表示、編集、二次著作物の作成および配信を行う無期限の権利を、ロイターおよびそのライセンシーに付与します。\n\nコンテンツ所有者はさらに、ロイターが世界各地で本件コンテンツを公開、表示、再配信する可能性のある他の者に対して自身のオンラインアーカイブにある本件コンテンツを使用許諾し販売する場合があることについて同意します。",
+    "TIME_LIMITED": "コンテンツ所有者 {NAME} は、自身が {CONTENT}（以下、「本件コンテンツ」）を所有しているかその著作権所有者の認定ライセンシーであること、ならびに他の人物または事業体に本件コンテンツの専属的利用を約束または許可していないことを表明し保証します。\n\nコンテンツ所有者は、ロイターが本件コンテンツをロイターの顧客に対して公開・配信する可能性があること、当該顧客には世界各地の報道機関が含まれ、これらがさらに本件コンテンツを使用、表示、公開することについて合意します。コンテンツ所有者は、世界各地においてあらゆる形式および言語、ならびにモバイル、インターネット、テレビ、ドラマ制作物などのあらゆる媒体（既知のものであるか将来考案されるものかを問いません）を用いて本件コンテンツの公開、再公開、表示、編集、二次著作物の作成および配信を行う権利を、ロイターおよびそのライセンシーに付与します。ただし、{DATE} 以降は、本件コンテンツの新たな使用は許可されなくなります。\n\nその日付以前に使用または公開されていた本件コンテンツを提供・表示する権利は無期限とします。",
+    "DRONE": "コンテンツ提供者は、提出されたコンテンツが、提供者の知る限り、そこに描かれている出来事を正確かつ真実に描写していること、また、コンテンツのために行われたニュースの情報収集が、人や財産への傷害を含む、いかなる法律の違反や第三者の権利の侵害にも関与していないことを表明し、保証するものとする。\n\nコンテンツ提供者は、本項の表明および保証の違反に起因する、合理的な弁護士費用を含むあらゆる請求、損失、損害及び又は費用からロイターを補償し、損害を受けないことを保証するものとする。"
+  },
+  "ITALIAN": {
+    "ACCESS_ALL": "Lei {NAME} dichiara e garantisce di essere il proprietario del {CONTENT} (il \"Contenuto\") o di essere il licenziatario autorizzato del titolare di diritti d'autore e di non aver promesso o fornito il Contenuto a qualsivoglia altra persona fisica o giuridica per il suo uso esclusivo.\n\nLei accetta che Reuters possa pubblicare e distribuire il Contenuto ai clienti di Reuters, ivi incluse altre società di informazioni nel mondo, per il suo relativo uso, visualizzazione e pubblicazione. Nello specifico, Lei concede a Reuters e ai suoi licenziatari il diritto perpetuo di pubblicare, ripubblicare, visualizzare, modificare, preparare opere derivate dal, e distribuire il Contenuto, sotto qualunque forma in tutto il mondo, in tutte le lingue e su qualunque supporto/media, attualmente noto o sviluppato in futuro, ivi compresi, a mero titolo esemplificativo ma non esaustivo, dispositivi mobili, Internet, televisione e produzioni di arti drammatiche.\n\nLei accetta inoltre che Reuters possa concedere in licenza e vendere il Contenuto nel suo archivio online ad altri che potrebbero pubblicarlo, visualizzarlo e ridistribuirlo in qualsiasi parte del mondo.",
+    "NO_RESALES": "Lei {NAME} dichiara e garantisce di essere il proprietario del {CONTENT} (il \"Contenuto\") o di essere il licenziatario autorizzato del titolare di diritti d'autore e di non aver promesso o fornito il Contenuto a qualsivoglia altra persona fisica o giuridica per il suo uso esclusivo.\n\nLei accetta che Reuters possa pubblicare e distribuire il Contenuto ai clienti di Reuters, ivi incluse altre società di informazioni nel mondo, per il suo relativo uso, visualizzazione e pubblicazione. Nello specifico, Lei concede a Reuters e ai suoi licenziatari il diritto perpetuo di pubblicare, ripubblicare, visualizzare, modificare, preparare opere derivate dal, e distribuire il Contenuto, sotto qualunque forma in tutto il mondo, in tutte le lingue e su qualunque supporto/media, attualmente noto o sviluppato in futuro, ivi compresi, a mero titolo esemplificativo ma non esaustivo, dispositivi mobili, Internet, televisione e produzioni di arti drammatiche.",
+    "TIME_LIMITED": "Lei {NAME} dichiara e garantisce di essere il proprietario del {CONTENT} (il \"Contenuto\") o di essere il licenziatario autorizzato del titolare di diritti d'autore e di non aver promesso o fornito il Contenuto a qualsivoglia altra persona fisica o giuridica per il suo uso esclusivo.\n\nLei accetta che Reuters possa pubblicare e distribuire il Contenuto ai clienti di Reuters, ivi incluse altre società di informazioni nel mondo, per il suo relativo uso, visualizzazione e pubblicazione. Nello specifico, Lei concede a Reuters e ai suoi licenziatari il diritto di pubblicare, ripubblicare, visualizzare, modificare, preparare opere derivate dal, e distribuire il Contenuto, sotto qualunque forma in tutto il mondo, in tutte le lingue e su qualunque supporto/media, attualmente noto o sviluppato in futuro, ivi compresi, a mero titolo esemplificativo ma non esaustivo, dispositivi mobili, Internet, televisione e produzioni di arti drammatiche, a condizione che dopo il {DATE}, il Contenuto non sarà sottoposto ad alcun nuovo uso.\n\nIl diritto di ospitare e visualizzare il Contenuto, secondo le modalità di utilizzo o pubblicazione applicate prima di quella data, è perpetuo.",
+    "DRONE": "Lei afferma e garantisce che il Contenuto inviato è, secondo la Sua migliore conoscenza, una rappresentazione precisa e veritiera degli eventi descritti, e che nessuna delle attività di raccolta notizie per il Contenuto ha comportato la violazione di leggi o dei diritti di terzi, incluso il danno a persone o proprietà.\n\nLei accetta di tenere indenne Reuters da qualsiasi rivendicazione, perdita, danno e/o spesa, inclusi ragionevoli onorari legali, derivanti dalla violazione delle rappresentazioni e garanzie fornite in questo paragrafo."
+  },
+  "GERMAN": {
+    "ACCESS_ALL": "Sie {NAME} sichern zu und gewährleisten, dass Sie Eigentümer der/des {CONTENT} (\"Inhalte\") sind oder dass Sie der autorisierte Lizenznehmer des Urheberrechtsinhabers sind und dass Sie die Inhalte keiner anderen natürlichen oder juristischen Person zur ausschließlichen Nutzung in Aussicht oder zur Verfügung gestellt haben.\n\nSie stimmen zu, dass Reuters die Inhalte veröffentlichen und an Kunden von Reuters zu deren weiteren Nutzung, Anzeige und Veröffentlichung weitergeben darf, unter anderem an andere Nachrichtenagenturen in aller Welt. Insbesondere räumen Sie Reuters und seinen Lizenznehmern das zeitlich unbegrenzte Recht ein, die Inhalte zu veröffentlichen, neu zu veröffentlichen, anzuzeigen, zu editieren, abgeleitete Werke davon zu erstellen und zu verbreiten, und zwar in jeglicher Form, weltweit, in allen Sprachen und in allen Medien, ob jetzt bekannt oder später erfunden, wie unter anderem Mobilgeräten, Internet, Fernseh- oder Theaterproduktionen.\n\nSie stimmen ferner zu, dass Reuters die Inhalte in seinem Online-Archiv an Dritte lizenzieren und verkaufen darf, die die Inhalte weltweit veröffentlichen, anzeigen und weiterverbreiten dürfen.",
+    "NO_RESALES": "Sie {NAME} sichern zu und gewährleisten, dass Sie Eigentümer der/des {CONTENT} (\"Inhalte\") sind oder dass Sie der autorisierte Lizenznehmer des Urheberrechtsinhabers sind und dass Sie die Inhalte keiner anderen natürlichen oder juristischen Person zur ausschließlichen Nutzung in Aussicht oder zur Verfügung gestellt haben.\n\nSie stimmen zu, dass Reuters die Inhalte veröffentlichen und an Kunden von Reuters zu deren weiteren Nutzung, Anzeige und Veröffentlichung weitergeben darf, unter anderem an andere Nachrichtenagenturen in aller Welt. Insbesondere räumen Sie Reuters und seinen Lizenznehmern das zeitlich unbegrenzte Recht ein, die Inhalte zu veröffentlichen, neu zu veröffentlichen, anzuzeigen, zu editieren, abgeleitete Werke davon zu erstellen und zu verbreiten, und zwar in jeglicher Form, weltweit, in allen Sprachen und in allen Medien, ob jetzt bekannt oder später erfunden, wie unter anderem Mobilgeräten, Internet, Fernseh- oder Theaterproduktionen.",
+    "TIME_LIMITED": "Sie {NAME} sichern zu und gewährleisten, dass Sie Eigentümer der/des {CONTENT} (\"Inhalte\") sind oder dass Sie der autorisierte Lizenznehmer des Urheberrechtsinhabers sind und dass Sie die Inhalte keiner anderen natürlichen oder juristischen Person zur ausschließlichen Nutzung in Aussicht oder zur Verfügung gestellt haben.\n\nSie stimmen zu, dass Reuters die Inhalte veröffentlichen und an Kunden von Reuters zu deren weiteren Nutzung, Anzeige und Veröffentlichung weitergeben darf, unter anderem an andere Nachrichtenagenturen in aller Welt. Insbesondere räumen Sie Reuters und seinen Lizenznehmern das Recht ein, die Inhalte zu veröffentlichen, neu zu veröffentlichen, anzuzeigen, zu editieren, abgeleitete Werke davon zu erstellen und zu verbreiten, und zwar in jeglicher Form, weltweit, in allen Sprachen und in allen Medien, ob jetzt bekannt oder später erfunden, wie unter anderem Mobilgeräten, Internet, Fernseh- oder Theaterproduktionen, vorausgesetzt, dass nach {DATE} keine weitere Nutzung der Inhalte mehr erfolgt.\n\nDas Recht, die Inhalte in der Form, in der sie vor diesem Datum genutzt oder veröffentlicht wurden, zu hosten oder anzuzeigen, ist zeitlich unbeschränkt.",  
+    "DRONE": "Sie sichern zu und gewährleisten, dass der übermittelte Inhalt nach Ihrem besten Wissen eine genaue und wahrheitsgetreue Darstellung der darin geschilderten Ereignisse ist und dass keine Ihrer Nachrichtengewinnung ,für den Inhalt, den Verstoß gegen Gesetzen oder die Verletzung von Rechten Dritter, einschließlich der Verletzung von Personen oder Eigentum, miteinbezog . Sie erklären sich damit einverstanden, Reuters von jeglichen Ansprüchen, Verlusten, Schäden und/oder Ausgaben, einschließlich angemessener Anwaltskosten, die aus der Verletzung der in diesem Absatz gemachten Zusicherungen und Gewährleistungen entstehen, freizustellen und schadlos zu halten."
+  },
+  "INDONESIAN": {
+    "ACCESS_ALL": "Anda {NAME} menyatakan dan menjamin bahwa Anda memiliki {CONTENT} (\"Konten\"), atau bahwa Anda merupakan pemegang lisensi resmi dari pemilik hak cipta, serta Anda tidak menjanjikan atau memberikan Konten kepada setiap orang atau entitas lain untuk penggunaan eksklusif mereka.\n\nAnda menyetujui bahwa Reuters dapat mempublikasikan dan mendistribusikan Konten kepada pelanggan Reuters, yang meliputi organisasi berita lain di seluruh dunia, untuk digunakan lebih lanjut, ditampilkan, serta dipublikasikan oleh mereka. Secara khusus, Anda memberi Reuters dan pemegang lisensinya hak kekal untuk mempublikasikan, mempublikasikan ulang, menampilkan, menyunting, menyiapkan karya cipta turunan, dan mendistribusikan Konten dalam segala bentuk ke seluruh dunia, dalam seluruh bahasa dan pada semua media, baik diketahui saat ini ataupun disusun kemudian, termasuk, namun tidak terbatas pada produksi pada perangkat seluler, internet, televisi, serta drama.\n\nAnda selanjutnya menyetujui bahwa Reuters dapat memberikan lisensi dan menjual Konten dalam arsip daringnya kepada pihak lain yang dapat mempublikasikan, menampilkan, serta menyebarluaskan Konten di mana pun di seluruh dunia.",
+    "NO_RESALES": "Anda {NAME} menyatakan dan menjamin bahwa Anda memiliki {CONTENT} (\"Konten\"), atau bahwa Anda merupakan pemegang lisensi resmi dari pemilik hak cipta, serta Anda tidak menjanjikan atau memberikan Konten kepada setiap orang atau entitas lain untuk penggunaan eksklusif mereka.\n\nAnda menyetujui bahwa Reuters dapat mempublikasikan dan mendistribusikan Konten kepada pelanggan Reuters, yang meliputi organisasi berita lain di seluruh dunia, untuk digunakan lebih lanjut, ditampilkan, serta dipublikasikan oleh mereka. Secara khusus, Anda memberi Reuters dan pemegang lisensinya hak kekal untuk mempublikasikan, mempublikasikan ulang, menampilkan, menyunting, menyiapkan karya cipta turunan, dan mendistribusikan Konten dalam segala bentuk ke seluruh dunia, dalam seluruh bahasa dan pada semua media, baik diketahui saat ini ataupun disusun kemudian, termasuk, namun tidak terbatas pada produksi pada perangkat seluler, internet, televisi, serta drama.",
+    "TIME_LIMITED": "Anda {NAME} menyatakan dan menjamin bahwa Anda memiliki {CONTENT} (\"Konten\"), atau bahwa Anda merupakan pemegang lisensi resmi dari pemilik hak cipta, serta Anda tidak menjanjikan atau memberikan Konten kepada setiap orang atau entitas lain untuk penggunaan eksklusif mereka.\n\nAnda menyetujui bahwa Reuters dapat mempublikasikan dan mendistribusikan Konten kepada pelanggan Reuters, yang meliputi organisasi berita lain di seluruh dunia, untuk digunakan lebih lanjut, ditampilkan, serta dipublikasikan oleh mereka. Secara khusus, Anda memberi Reuters dan pemegang lisensinya hak untuk mempublikasikan, mempublikasikan ulang, menampilkan, menyunting, menyiapkan karya cipta turunan, dan mendistribusikan Konten dalam segala bentuk ke seluruh dunia, dalam seluruh bahasa dan pada semua media, baik diketahui saat ini ataupun disusun selanjutnya, termasuk, namun tidak terbatas pada produksi pada perangkat seluler, internet, televisi, serta drama, dengan ketentuan bahwa setelah {DATE}, penggunaan baru tidak akan dibuat dari Konten tersebut.\n\nHak untuk memberikan dan menampilkan Konten, sebagaimana digunakan atau dipublikasikan sebelum tanggal tersebut, merupakan hak kekal.",  
+    "DRONE": "Anda mewakili dan menjamin Konten yang diberikan ke Reuters adalah, dalam pemahaman anda yang terbaik, gambaran yang tepat dan benar dalam menunjukkan kejadian yang telah terjadi, dan tidak ada pengumpulan berita Konten yang melanggar undang-undang ataupun melanggar hak-hak pihak ketiga (third party), termasuk mencederai orang ataupun kerusakkan pada harta benda.\n\nAnda menyetujui untuk menanggung kerugian dan memahami bahwa Reuters tidak dibahayakan dari segala tuntutan, kerugian, ganti rugi dan/atau pembelanjaan termasuk pembayaran pengganti yang sesuai, yang ada dari pelanggaran , perwakilan dan jaminan yang ditulis dalam surat ini."
+  },
+  "MALAY": {
+    "ACCESS_ALL": "Anda {NAME} mewakili dan menjaminkan bahawa anda memiliki {CONTENT} (\"Kandungan\"), atau bahawa anda pemegang lesen sah tuan punya hak cipta dan anda belum menjanjikan atau menyediakan Kandungan tersebut kepada mana-mana orang atau entiti yang lain untuk kegunaan eksklusif mereka.\n\nAnda bersetuju bahawa Reuters boleh menerbit dan mengedarkan Kandungan kepada pelanggan Reuters yang termasuk organisasi berita lain di seluruh dunia, untuk digunakan, dipaparkan dan diterbitkan oleh mereka selanjutnya. Secara khususnya, anda memberi Reuters dan pemegang lesennya hak abadi untuk menerbit, menerbit semula, memapar, mengedit, menyediakan kerja terbitan dan mengedarkan Kandungan, dalam apa-apa bentuk di seluruh dunia, dalam semua bahasa dan dalam semua jenis media, sama ada diketahui sekarang atau dicipta kelak, termasuk tetapi tidak terhad kepada pengeluaran mudah alih, internet, televisyen dan drama.\n\nAnda juga bersetuju bahawa Reuters boleh melesenkan dan menjual Kandungan dalam arkib dalam talian mereka kepada pihak lain yang mungkin menerbit, memapar, dan mengedar semula Kandungan mana-mana di seluruh dunia.",
+    "NO_RESALES": "Anda {NAME} mewakili dan menjaminkan bahawa anda memiliki {CONTENT} (\"Kandungan\"), atau bahawa anda pemegang lesen sah tuan punya hak cipta dan anda belum menjanjikan atau menyediakan Kandungan tersebut kepada mana-mana orang atau entiti yang lain untuk kegunaan eksklusif mereka.\n\nAnda bersetuju bahawa Reuters boleh menerbit dan mengedarkan Kandungan kepada pelanggan Reuters yang termasuk organisasi berita lain di seluruh dunia, untuk digunakan, dipaparkan dan diterbitkan oleh mereka selanjutnya. Secara khususnya, anda memberi Reuters dan pemegang lesennya hak abadi untuk menerbit, menerbit semula, memapar, mengedit, menyediakan kerja terbitan dan mengedarkan Kandungan, dalam apa-apa bentuk di seluruh dunia, dalam semua bahasa dan dalam semua jenis media, sama ada diketahui sekarang atau dicipta kelak, termasuk tetapi tidak terhad kepada pengeluaran mudah alih, internet, televisyen dan drama.",
+    "TIME_LIMITED": "Anda {NAME} mewakili dan menjaminkan bahawa anda memiliki {CONTENT} (\"Kandungan\"), atau bahawa anda pemegang lesen sah tuan punya hak cipta dan anda belum menjanjikan atau menyediakan Kandungan tersebut kepada mana-mana orang atau entiti yang lain untuk kegunaan eksklusif mereka.\n\nAnda bersetuju bahawa Reuters boleh menerbit dan mengedarkan Kandungan kepada pelanggan Reuters yang termasuk organisasi berita lain di seluruh dunia, untuk digunakan, dipaparkan dan diterbitkan oleh mereka selanjutnya. Secara khususnya, anda memberi Reuters dan pemegang lesennya hak untuk menerbit, menerbit semula, memapar, mengedit, menyediakan kerja terbitan dan mengedarkan Kandungan, dalam apa-apa bentuk di seluruh dunia, dalam semua bahasa dan dalam semua jenis media, sama ada diketahui sekarang atau dicipta kelak, termasuk tetapi tidak terhad kepada pengeluaran mudah alih, internet, televisyen dan drama, dengan syarat bahawa selepas {DATE}, tiada kegunaan baru akan dibuat pada Kandungan ini.\n\nHak untuk mengehos dan memaparkan Kandungan, seperti yang digunakan atau diterbitkan sebelum tarikh tersebut adalah abadi.",
+    "DRONE": "Anda mewakili dan menjamin bahawa Kandungan yang dihantar adalah gambaran yang tepat dan benar mengenai peristiwa yang digambarkan di dalamnya, dan bahawa aktiviti pengumpulan maklumat berita bagi Kandungan tersebut tidak melibatkan pelanggaran mana-mana undang-undang atau pelanggaran hak mana-mana pihak ketiga, termasuk kecederaan kepada mana-mana individu atau harta benda.\n\nAnda bersetuju untuk menanggung rugi dan memastikan Reuters tidak mengalami sebarang tuntutan, kerugian, kerosakan dan/atau perbelanjaan, termasuk yuran guaman yang berpatutan, yang timbul daripada pelanggaran mewakili dan jaminan yang dibuat dalam perenggan ini."
+  },
+  "TURKISH": {
+    "ACCESS_ALL": "Siz {NAME} içeriğin sahibi olduğunuzu {CONTENT} (“İçerik”) veya telif hakkı sahibinin yetkili lisans sahibi olduğunuzu ve İçeriği münhasır kullanımları için diğer başka kişilere ya da işletmelere söz vermediğinizi veya temin etmediğinizi beyan ve garanti etmektesiniz.\n\nReuters'in İçeriği, dünya genelinde yer alan diğer haber kuruluşlarını da içeren Reuters müşterilerine ilave kullanımlar, gösterimler ve yayınlar için yayımlayabileceğini ve dağıtabileceğini kabul etmektesiniz. Özellikle, Reuters'e ve onun lisans sahiplerine, tüm dünyada, tüm dillerde ve tüm ortamlarda, şu anda bilinen veya bundan sonra geliştirilen, mobil, internet, televizyon ve tiyatroya ait prodüksiyonlar dâhil ancak bunlarla sınırlı olmamak üzere İçeriği yayımlama, yeniden yayımlama, gösterme, içerikte değişiklik yapma, içeriğin türevlerini hazırlama ve içeriği dağıtma konusunda daimi hak vermektesiniz.\n\nAyrıca Reuters'in çevrimiçi arşivinde, bu İçeriği dünyanın herhangi bir yerinde yayımlayabilecek, gösterebilecek ve yeniden dağıtabilecek diğer kişilere ve kuruluşlara, İçeriği lisanslayabileceğini ve satabileceğini de kabul etmektesiniz.",
+    "NO_RESALES": "Siz {NAME} içeriğin sahibi olduğunuzu {CONTENT} (“İçerik”) veya telif hakkı sahibinin yetkili lisans sahibi olduğunuzu ve İçeriği münhasır kullanımları için diğer başka kişilere ya da işletmelere söz vermediğinizi veya temin etmediğinizi beyan ve garanti etmektesiniz.\n\nReuters'in İçeriği, dünya genelinde yer alan diğer haber kuruluşlarını da içeren Reuters müşterilerine ilave kullanımlar, gösterimler ve yayınlar için yayımlayabileceğini ve dağıtabileceğini kabul etmektesiniz. Özellikle, Reuters'e ve onun lisans sahiplerine, tüm dünyada, tüm dillerde ve tüm ortamlarda, şu anda bilinen veya bundan sonra geliştirilen, mobil, internet, televizyon ve tiyatroya ait prodüksiyonlar dâhil ancak bunlarla sınırlı olmamak üzere İçeriği yayımlama, yeniden yayımlama, gösterme, içerikte değişiklik yapma, içeriğin türevlerini hazırlama ve içeriği dağıtma konusunda daimi hak vermektesiniz.",
+    "TIME_LIMITED": "Siz {NAME} içeriğin sahibi olduğunuzu {CONTENT} (\"İçerik\") veya telif hakkı sahibinin yetkili lisans sahibi olduğunuzu ve İçeriği münhasır kullanımları için diğer başka kişilere ya da işletmelere söz vermediğinizi veya temin etmediğinizi beyan ve garanti etmektesiniz.\n\nReuters'in İçeriği, dünya genelinde yer alan diğer haber kuruluşlarını da içeren Reuters müşterilerine ilave kullanımlar, gösterimler ve yayınlar için yayımlayabileceğini ve dağıtabileceğini kabul etmektesiniz. Özellikle, Reuters'e ve onun lisans sahiplerine, tüm dünyada, tüm dillerde ve tüm ortamlarda, şu anda bilinen veya bundan sonra geliştirilen, mobil, internet, televizyon ve tiyatroya ait prodüksiyonlar dâhil ancak bunlarla sınırlı olmamak üzere İçeriği yayımlama, yeniden yayımlama, gösterme, içerikte değişiklik yapma, içeriğin türevlerini hazırlama ve içeriği dağıtma konusunda, {DATE} tarihinden sonra İçerik konusunda hiçbir yeni kullanımın olmaması şartıyla, hak vermektesiniz.\n\nSöz konusu tarihten önce kullanılan veya yayımlanan şekliyle İçeriği barındırma ve görüntüleme hakkı daimidir.",
+    "DRONE": "Gönderilen içeriğin, bilginiz dahilinde, burada anlatılan olayların doğru ve gerçeğe uygun bir tasviri olduğunu ve içerik için topladığınız haberlerin hiçbirinin herhangi bir yasanın veya hakların ihlaline yol açmadığını beyan ve garanti edersiniz. Kişilerin veya malların yaralanması da dahil olmak üzere herhangi bir üçüncü tarafın zarar görmesi - Bu paragrafta belirtilen beyan ve garantilerin ihlalinden kaynaklanan makul avukat ücretleri de dahil olmak üzere her türlü talep, kayıp, hasar ve/veya masrafa karşı Reuters'i tazmin etmeyi ve masun tutmayı kabul etmektesiniz."
+  },
+  "KOREAN": {
+    "ACCESS_ALL": "귀하 {NAME}는 {CONTENT} (\"콘텐츠\")의 소유자이거나, 귀하가 저작권 소유자가 허가한 라이선스 사용권자이며, 다른 일체의 개인 또는 법인에 이를 독점적으로 사용하도록 약속하거나 제공한 적이 없음을 진술하고 보증합니다.\n\n귀하는 Reuters가 전 세계 다른 뉴스 기관을 포함한 Reuters의 고객에게 본 콘텐츠를 고객이 추후 사용하고, 전시하고 게재하도록 이를 게재하고 배포할 수 있다는 데 동의합니다. 특히, 귀하는 Reuters와 그 라이선스 사용권자에게 전 세계에서 어떤 형식으로든, 모든 언어로, 현재 알려져 있거나 향후 개발될 것인지 아닌지에 관계없이, 모바일, 인터넷, 텔레비전 및 극 작품 제작을 포함하되 이에 국한되지 않는 모든 매체로 본 콘텐츠의 파생 저작물을 게재, 재게재, 전시, 편집, 준비하고 본 콘텐츠를 배포할 영구적인 권리를 허여합니다.\n\n귀하는 또한 Reuters가 온라인 아카이브에서 전 세계 어디에서나 본 콘텐츠를 게재, 전시 및 재배포할 수 있는 타인에게 본 콘텐츠의 라이선스를 허여하고 판매할 수 있다는 데 동의합니다.",
+    "NO_RESALES": "귀하 {NAME}는 {CONTENT} (\"콘텐츠\")의 소유자이거나, 귀하가 저작권 소유자가 허가한 라이선스 사용권자이며, 다른 일체의 개인 또는 법인에 이를 독점적으로 사용하도록 약속하거나 제공한 적이 없음을 진술하고 보증합니다.\n\n귀하는 Reuters가 전 세계 다른 뉴스 기관을 포함한 Reuters의 고객에게 본 콘텐츠를 고객이 추후 사용하고, 전시하고 게재하도록 이를 게재하고 배포할 수 있다는 데 동의합니다. 특히, 귀하는 Reuters와 그 라이선스 사용권자에게 전 세계에서 어떤 형식으로든, 모든 언어로, 현재 알려져 있거나 향후 개발될 것인지 아닌지에 관계없이, 모바일, 인터넷, 텔레비전 및 극 작품 제작을 포함하되 이에 국한되지 않는 모든 매체로 본 콘텐츠의 파생 저작물을 게재, 재게재, 전시, 편집, 준비하고 본 콘텐츠를 배포할 영구적인 권리를 허여합니다.",
+    "TIME_LIMITED": "귀하 {NAME} 는 {CONTENT} (“콘텐츠”)의 소유자이거나, 귀하가 저작권 소유자가 허가한 라이선스 사용권자이며, 다른 일체의 개인 또는 법인에 이를 독점적으로 사용하도록 약속하거나 제공한 적이 없음을 진술하고 보증합니다.\n\n귀하는 Reuters가 전 세계 다른 뉴스 기관을 포함한 Reuters의 고객에게 본 콘텐츠를 고객이 추후 사용하고, 전시하고 게재하도록 이를 게재하고 배포할 수 있다는 데 동의합니다. 특히, 귀하는 Reuters와 그 라이선스 사용권자에게 전 세계에서 어떤 형식으로든, 모든 언어로, 현재 알려져 있거나 향후 개발될 것인지 아닌지에 관계없이 모바일, 인터넷, 텔레비전 및 극 작품 제작을 포함하되 이에 국한되지 않는 모든 매체로 본 콘텐츠의 파생 저작물을 게재, 재게재, 전시, 편집, 준비하고 본 콘텐츠를 배포할 권리를 허여하되, {DATE} 이후에는 콘텐츠를 일체 신규 사용하지 않기로 합니다. 상기 날짜 전에 사용 또는 게재된 콘텐츠를 호스팅하고 전시할 권리는 영구적입니다.",
+    "DRONE": "귀하는 이 자료가 귀하가 아는 한 정확하고 사실적으로 묘사되었다는 것을 보장합니다. 그리고 이 자료를 취재하는 도중에 법을 위반하거나 재산상 손해나 상해를 포함한 제 3자의 권리를 침해한 적이 없을음 보장합니다.\n\n귀하는 앞에서 보장한 내용이 위반되었을 때 발생할 어떠한 청구, 손실, 피해로부터 로이터통신을 보호하고 변호사 선임비를 포함한 비용 발생 시 배상을 약속합니다.\n\n로이터통신은 이 콘텐츠를 보도용으로 언론사에 배포합니다."
+  },
+  "DARI": {
+    "ACCESS_ALL": "شما {NAME} گواهی می‌دهید که مالک {CONTENT} هستید، یا دارای مجوز از صاحب امتیاز هستید و وعده‌ی تحویل‌دهی مواد فوق را به هیچ فرد یانهاد دیگری برای استفاده‌ی انحصاری‌شان نداده‌اید.\n\nشما موافق هستید که رویترز ممکن مواد فوق را نشر، و یا برای استفاده، نمایش و نشر، آن را به دسترس مشتریان رویترز که شامل سازمان‌‌های خبری دیگر در سراسر جهان می‌شود قرار دهد؛ به ویژه شما به رویترز حق دائمی نشر، بازنشر، نمایش، ویرایش، آماده‌ساختن کارهای مشتق‌شده و توزیع مواد فوق به هر شکلی در سراسر جهان به همه زبان‌ها و در تمام رسانه‌‍‌ها، چه در حال حاضر شناخته‌شده باشند و یا پس از این ایجاد شوند و محدود به موبایل، اینترنت، تلویزیون و پرودکشن‌های دراماتیک نباشند می‌دهید.\n\nشما همچنان با این موافق هستید که ممکن رویترز مواد فوق را از طریق آرشیف آنلاین به دیگران بفروشد؛ کسانی که ممکن مواد یاد شده را در هرجایی از جهان، منتشر کنند، نمایش دهند و توزیع مجدد کنند.",
+    "NO_RESALES": "شما {NAME} گواهی می‌دهید که مالک {CONTENT} هستید، یا دارای مجوز از صاحب امتیاز هستید و وعده‌ی تحویل‌دهی مواد فوق را به هیچ فرد یانهاد دیگری برای استفاده‌ی انحصاری‌شان نداده‌اید.\n\nشما موافق هستید که رویترز ممکن مواد فوق را نشر، و یا برای استفاده، نمایش و نشر، آن را به دسترس مشتریان رویترز که شامل سازمان‌‌های خبری دیگر در سراسر جهان می‌شود قرار دهد؛به ویژه شما به رویترز حق دائمی نشر، بازنشر، نمایش، ویرایش، آماده‌ساختن کارهای مشتق‌شده و توزیع مواد فوق به هر شکلی در سراسر جهان به همه زبان‌ها و در تمام رسانه‌‍‌ها، چه در حال حاضر شناخته‌شده باشند و یا پس از این ایجاد شوند و محدود به موبایل، اینترنت، تلویزیون و پرودکشن‌های دراماتیک نباشند می‌دهید.",
+    "DRONE": "شما با آگاهی کامل ابراز و تضمین میکنید که مطلب تسلیم داده شده یک تصویر واقعی و درست از محل واقعه بوده، و جمع آوری خبر برای این مطلب باعث نقض کدام قانون و نقض حقوق کدام شخص سوم مشمول بر جراحت اشخاص و یا اموال نشده است.\n\nشما موافقت میکنید که روزیترز در برابر هرگونه ادعا، زیان، خسارات وارده، و مصارف فیس وکیل مدافع، که به سبب نقض تضمین و ابراز که در این پاراگراف گردیده، بی ضرر باقی میماند."
+  },
+  "PASHTO": {
+    "ACCESS_ALL": "تاسو {NAME} شاهدي ورکوئ چې ځښتن {CONTENT} یاستئ. یا د امیتاز خاوند څخه جواز لرونکی یاستئ. او ددې ژمنه کوي چې پورته توکي هیچا او یا بلې ادارې ته مو نه دې ورکړي.\n\nتاسو موافق یاستی چې رویترز پورته شوي توکي د نورو هېوادونو او سازمانو خبري شبکو مشتریانو ته د ګټي اخیستنې له پاره ورکړي. په ځانګړي توګه رویترز دایمي نشر حق، تکرارنشر، ښودنه، ایډیټ، او یا پورته ذکر شوي توکي د نړۍ ټولو هيوادونو ته په ټولو ژبو او په ټولو رسنیو کې ورکوي.\n\nایا تاسو له دې سره هم موافق یاستی چې ښايي رویترز پورته ذکر شوي توکي د ارشیف له لوري په نورو باندې به انلاین توکه و پلوري هغه توکي چې دا ادارې به یې په ټوله نړۍ کې خپاره کړي.",
+    "NO_RESALES": "تاسو {NAME} شاهدي ورکوئ چې ځښتن {CONTENT} یاستئ. یا د امیتاز خاوند څخه جواز لرونکی یاستئ. او ددې ژمنه کوي چې پورته توکي هیچا او یا بلې ادارې ته مو نه دې ورکړي.\n\nتاسو موافق یاستی چې رویترز پورته شوي توکي د نورو هېوادونو او سازمانو خبري شبکو مشتریانو ته د ګټي اخیستنې له پاره ورکړي. په ځانګړي توګه رویترز دایمي نشر حق، تکرارنشر، ښودنه، ایډیټ، او یا پورته ذکر شوي توکي د نړۍ ټولو هيوادونو ته په ټولو ژبو او په ټولو رسنیو کې ورکوي.",
+    "DRONE": "\"أنت تقر وتضمن أن المحتوى المقدم، حسب مدى علمك، يمثل تصويراً دقيقاً وصادقاً للوقائع المصورة فيه وأن أيا من نشاطك في التغطية الإخبارية لهذا المحتوى لا ينطوي على خرق أي قوانين أو انتهاك حقوق أي طرفٍ ثالثٍ بما في ذلك إلحاق الضرر بالأشخاص والممتلكات. وتوافق على التعويض وإعفاء رويترز من تحمل مسؤولية أي مطالبات أو خسائر أو تعويضات و/أو مصروفات بما في ذلك مصاريف المحامين المعقولة الناتجة عن الإخلال بالإقرار والضمانات الواردة في هذه الفقرة\"\n\n."
+  },
+  "PORTUGUESE": {
+    "ACCESS_ALL": "Você, {NAME}, declara e garante que é o proprietário do(a) {CONTENT} (o \"Conteúdo\"), ou que é o licenciado autorizado pelo proprietário dos direitos de reprodução e não prometeu nem forneceu o Conteúdo a nenhuma outra pessoa ou entidade para seu uso exclusivo.\n\nVocê concorda em permitir que a Reuters possa publicar e distribuir o Conteúdo a clientes da Reuters, incluindo outras organizações de divulgação de notícias ao redor do mundo, para que elas também o utilizem, exibam e publiquem. Especificamente, você concede à Reuters e a seus licenciados o direito perpétuo de publicar, republicar, exibir, editar, distribuir o Conteúdo e preparar obras derivadas dele, sob qualquer forma, no mundo inteiro, em todos os idiomas e em qualquer meio de comunicação, seja conhecido atualmente ou inventado no futuro, inclusive, entre outros, a internet, a televisão e produções teatrais.\n\nVocê concorda também em permitir que a Reuters licencie e venda o Conteúdo do seu arquivo online para outros que possam publicar, exibir e redistribuir o Conteúdo em qualquer parte do mundo.",
+    "NO_RESALES": "Você, {NAME}, declara e garante que é o proprietário do(a) {CONTENT} (o \"Conteúdo\"), ou que é o licenciado autorizado pelo proprietário dos direitos de reprodução e não prometeu nem forneceu o Conteúdo a nenhuma outra pessoa ou entidade para seu uso exclusivo.\n\nVocê concorda em permitir que a Reuters possa publicar e distribuir o Conteúdo a clientes da Reuters, incluindo outras organizações de divulgação de notícias ao redor do mundo, para que elas também o utilizem, exibam e publiquem. Especificamente, você concede à Reuters e a seus licenciados o direito perpétuo de publicar, republicar, exibir, editar, distribuir o Conteúdo e preparar obras derivadas dele, sob qualquer forma, no mundo inteiro, em todos os idiomas e em qualquer meio de comunicação, seja conhecido atualmente ou inventado no futuro, inclusive, entre outros, a internet, a televisão e produções teatrais.",
+    "TIME_LIMITED": "Você, {NAME}, declara e garante que é o proprietário do(a) {CONTENT} (o \"Conteúdo\"), ou que é o licenciado autorizado pelo proprietário dos direitos de reprodução e não prometeu nem forneceu o Conteúdo a nenhuma outra pessoa ou entidade para seu uso exclusivo.\n\nVocê concorda em permitir que a Reuters possa publicar e distribuir o Conteúdo a clientes da Reuters, incluindo outras organizações de divulgação de notícias ao redor do mundo, para que elas também o utilizem, exibam e publiquem. Especificamente, você concede à Reuters e a seus licenciados o direito de publicar, republicar, exibir, editar, distribuir o Conteúdo e preparar obras derivadas dele, sob qualquer forma, no mundo inteiro, em todos os idiomas e em qualquer meio de comunicação, seja conhecido atualmente ou inventado no futuro, inclusive, entre outros, dispositivos móveis, a internet, a televisão e produções teatrais, contanto que, depois de {DATE}, não seja feito nenhum uso novo do Conteúdo.\n\nO direito de hospedar e exibir o Conteúdo conforme era usado ou publicado antes dessa data é perpétuo."
+  },
+  "RUSSIAN": {
+    "ACCESS_ALL": "Вы {NAME} заверяете и гарантируете то, что Вы являетесь владельцем {CONTENT} (далее — «Контент») или уполномоченным лицензиатом владельца авторских прав, и что Вы не обещали и не предоставляли Контент другим лицам или организациям для его исключительного использования.\n\nВы соглашаетесь с тем, что Reuters вправе публиковать и распространять Контент среди клиентов агентства Reuters, среди которых другие новостные организации по всему миру, для его дальнейшего использования, отображения и публикации. В частности, Вы предоставляете агентству Reuters и его лицензиатам бессрочное право публиковать, повторно публиковать, отображать, редактировать, создавать производные работы и распространять Контент в любой форме по всему миру, на всех языках и во всех средствах массовой информации, известных в настоящее время или созданных в будущем, включая, помимо прочего, мобильную связь, интернет, телевидение и сценические постановки.\n\nВы также соглашаетесь с тем, что Reuters вправе лицензировать и продавать Контент, хранящийся в его онлайн-архиве, другим лицам, которые могут публиковать, отображать и распространять Контент в любой точке мира",
+    "NO_RESALES": "Вы {NAME} заверяете и гарантируете то, что Вы являетесь владельцем {CONTENT} (далее — «Контент») или уполномоченным лицензиатом владельца авторских прав, и что Вы не обещали и не предоставляли Контент другим лицам или организациям для его исключительного использования.\n\nВы соглашаетесь с тем, что Reuters вправе публиковать и распространять Контент среди клиентов агентства Reuters, среди которых другие новостные организации по всему миру, для его дальнейшего использования, отображения и публикации. В частности, Вы предоставляете агентству Reuters и его лицензиатам бессрочное право публиковать, повторно публиковать, отображать, редактировать, создавать производные работы и распространять Контент в любой форме по всему миру, на всех языках и во всех средствах массовой информации, известных в настоящее время или созданных в будущем, включая, помимо прочего, мобильную связь, интернет, телевидение и сценические постановки.",
+    "TIME_LIMITED": "Вы {NAME} заверяете и гарантируете то, что Вы являетесь владельцем {CONTENT} (далее — «Контент») или уполномоченным лицензиатом владельца авторских прав, и что Вы не обещали и не предоставляли Контент другим лицам или организациям для его исключительного использования.\n\nВы соглашаетесь с тем, что Reuters вправе публиковать и распространять Контент среди клиентов агентства Reuters, среди которых другие новостные организации по всему миру, для его дальнейшего использования, отображения и публикации. В частности, Вы предоставляете агентству Reuters и его лицензиатам право публиковать, повторно публиковать, отображать, редактировать, создавать производные работы и распространять Контент в любой форме по всему миру, на всех языках и во всех средствах массовой информации, известных сейчас или созданных в будущем, включая, помимо прочего, мобильную связь, интернет, телевидение и сценические постановки, при условии, что после {DATE} Контент не будет использоваться вновь. Право размещения и отображения Контента в том виде, в котором он использовался или был опубликован до этой даты, является бессрочным."
+  },
+  "UKRAINIAN": {
+    "ACCESS_ALL": "Ви, {NAME}, заявляєте та гарантуєте, що Ви є власником {CONTENT} (далі — «Контент») або уповноваженим ліцензіатом власника авторських прав, і що Ви не обіцяли і не надавали Контент іншим особам або організаціям для його ексклюзивного використання.\n\nВи погоджуєтеся з тим, що Reuters може публікувати і поширювати інформацію серед клієнтів агентства Reuters, серед яких інші новинні організації по всьому світу, для його подальшого використання, перегляду та публікації. Зокрема, Ви надаєте агентству Reuters і його ліцензіатам безстрокове право публікувати, повторно публікувати, відображати, редагувати, створювати похідні роботи і поширювати інформацію в будь-якій формі по всьому світу, на всіх мовах і у всіх засобах масової інформації, відомих у даний час або створених у майбутньому, включаючи, крім іншого, мобільний зв'язок, інтернет, телебачення та сценічні постановки.\n\nВи також погоджуєтеся з тим, що Reuters має право ліцензувати і продавати Контент, що зберігається в його онлайн-архіві, іншим особам, які можуть публікувати, відображати і поширювати інформацію в будь-якій точці світу.",
+    "NO_RESALES": "Ви, {NAME}, заявляєте та гарантуєте, що Ви є власником {CONTENT} (далі — «Контент») або уповноваженим ліцензіатом власника авторських прав, і що Ви не обіцяли і не надавали Контент іншим особам або організаціям для його ексклюзивного використання.\n\nВи погоджуєтеся з тим, що Reuters може публікувати і поширювати інформацію серед клієнтів агентства Reuters, серед яких інші новинні організації по всьому світу, для його подальшого використання, перегляду та публікації. Зокрема, Ви надаєте агентству Reuters і його ліцензіатам безстрокове право публікувати, повторно публікувати, відображати, редагувати, створювати похідні роботи і поширювати інформацію в будь-якій формі по всьому світу, на всіх мовах і у всіх засобах масової інформації, відомих у даний час або створених у майбутньому, включаючи, крім іншого, мобільний зв'язок, інтернет, телебачення та сценічні постановки."
+  },
+  "CATALAN": {
+    "ACCESS_ALL": "Vostè {NAME} declara i garanteix que és propietari del {CONTENT} (el \"Contingut\"), i que no ha facilitat ni ha promès facilitar el Contingut a cap altra persona ni entitat per al seu ús exclusiu.\n\nVostè accepta que Reuters pugui publicar i distribuir el contingut als clients de Reuters, com altres organitzacions de notícies en el món, per al seu posterior ús, exhibició i publicació. En concret, vostè atorga a Reuters i als seus llicenciataris el dret perpetu a publicar, republicar, exhibir, editar, preparar obres derivades i distribuir el contingut, en qualsevol forma i a nivell internacional, en tots els idiomes i en tots els suports, ja siguin coneguts actualment o concebuts en el futur, entre ells dispositius mòbils, internet, televisió i produccions dramàtiques."
+  },
+  "POLISH": {
+    "ACCESS_ALL": "Ja,{NAME} oświadczam, że jestem właścicielem {CONTENT} (dalej:\"Zawartość\") lub autoryzowanym licencjobiorcą właściciela praw autorskich i nie obiecałem (am) ani nie udostępniłem(am) Zawartości innym osobom lub podmiotom do ich wyłącznego użytku.\n\nWyrazam zgode,by firma Reuters publikowała i rozpowszechniała Zawartość wśród klientów firmy Reuters,do których należą organizacje medialne z całego świata, celem dalszego jej wykorzystywania, emitowania i publikowania. W szczególności udzielam firmie Reuters i jej licencjobiorcom prawo wieczystego publikowania, redystrybucji, emitowania, edytowania, przygotowywania utworów pochodnych i rozpowszechniania Zawartości, w dowolnej formie na całym świecie, we wszystkich językach i we wszystkich mediach, niezależnie od tego, czy istnieją w chwili obecnej, czy też powstaną w przyszłości włączając, lecz nie ograniczając prawa do wykorzystywania jej w produkcjach w aplikacjach mobilnych, internetowych, telewizyjnych i teatralnych.\n\nWyrażam również zgodę na to,by firma Reuters mogła licencjonować i sprzedawać Zawartość, jako część swojego internetowego archiwum, innym podmiotom które bedą miały prawo jej publikowania i redystrybucji w dowolnym miejscu na świecie.",
+    "NO_RESALES": "Ja,{NAME} oświadczam, że jestem właścicielem {CONTENT} (dalej:\"Zawartość\") lub autoryzowanym licencjobiorcą właściciela praw autorskich i nie obiecałem (am) ani nie udostępniłem(am) Zawartości innym osobom lub podmiotom do ich wyłącznego użytku.\n\nWyrazam zgode,by firma Reuters publikowała i rozpowszechniała Zawartość wśród klientów firmy Reuters,do których należą organizacje medialne z całego świata, celem dalszego jej wykorzystywania, emitowania i publikowania. W szczególności udzielam firmie Reuters i jej licencjobiorcom prawo wieczystego publikowania, redystrybucji, emitowania, edytowania, przygotowywania utworów pochodnych i rozpowszechniania Zawartości, w dowolnej formie na całym świecie, we wszystkich językach i we wszystkich mediach, niezależnie od tego, czy istnieją w chwili obecnej, czy też powstaną w przyszłości włączając, lecz nie ograniczając prawa do wykorzystywania jej w produkcjach w aplikacjach mobilnych, internetowych, telewizyjnych i teatralnych.",
+    "DRONE": "Oświadczasz i gwarantujesz, że przesłana Treść jest, według Twojej najlepszej wiedzy, uczciwym i prawdziwym przedstawieniem wydarzeń w niej przedstawionych, i że żadne z Twoich działań związanych ze zbieraniem informacji na potrzeby Treści nie wiązało się z naruszeniem jakichkolwiek praw ani naruszeniem praw osób trzecich, w tym z obrażeniami osób lub mienia.\n\nZgadzasz się zabezpieczyć Reuters przed wszelkimi roszczeniami, stratami, szkodami i/lub wydatkami, w tym uzasadnionymi honorariami adwokackimi, wynikającymi z naruszenia oświadczeń i gwarancji zawartych w tym akapicie."
+  },
+  "KURDISH_SORANI": {
+    "ACCESS_ALL": "بەڵین دەدەم {NAME} کەتۆ خاونی {CONTENT} یان تۆ مافت هەیە بەبڵاوکردنەوە ودانان وقەد بەڵەیند نەداوە بۆکەسێک تر یاخود دەزگایەک تر بۆ بەکارهێنانی تایبەت.\n\nرەزامەندی بە مولەتی ئاژانسی رویتەر بە بڵاوکردنی ناوەڕوک وبڵاوکردنی ودابەشکردنی لەسەر هاوبەشەکانی لە هەمو شوێنەکانی جیهاندا. بەتایبەتی توانای ئاژانسی رویتەر هەیە بۆ رێگە پێدان بۆ ئەو ئاژانسانە کە مامەڵە لەگڵی دەکەن مافیان هەیە بۆ بڵاوکردنی بە ردوام وهەر وەها بڵاوکردنی دوو بارە.\n\nهەروەها رەزامەندی بۆ رویتەر بۆ موڵەت دان هەر وەها فروشتنی ناوەرۆکەکە لە ئەرشیفی تایبەتی خوی لە انترنیت بو کەسیکی تر.",
+    "NO_RESALES": "بریار وبەڵین دەدەم {NAME} کە تۆ خاوەنی {CONTENT} یان تۆ ماف هەیە بەبڵاوکردنەوە ودانان وقەد بەڵەیند نەداوە بۆکەسێک تر یاخود دەزگایەک تر بۆ بەکارهێنانی تایبەت.\n\nرەزامەندی بە مولەتی ئاژانسی رویتەر بە بڵاوکردنی ناوەڕوک وبڵاوکردنی ودابەشکردنی لەسەر هاوبەشەکانی لە هەمو شوێنەکانی جیهاندا. بەتایبەتی توانای ئاژانسی رویتەر هەیە بۆ رێگە پێدان بۆ ئەو ئاژانسانە کە مامەڵە لەگڵی دەکەن مافیان هەیە بۆ بڵاوکردنی بە ردوام وهەر وەها بڵاوکردنی دوو بارە."
+  },
+  "VIETNAMESE": {
+    "NO_RESALES": "Bạn {NAME} tuyên bố và đảm bảo rằng bạn sở hữu {CONTENT} (\"Nội dung\") hoặc bạn là người được cấp phép được ủy quyền của chủ sở hữu bản quyền và bạn đã không hứa hoặc cung cấp Nội dung cho bất kỳ cá nhân hoặc tổ chức nào khác để họ sử dụng riêng.\n\nCụ thể, bạn cấp cho Reuters và những người được cấp phép quyền vĩnh viễn để xuất bản, tái xuất bản, hiển thị, chỉnh sửa, chuẩn bị các tác phẩm phái sinh và phân phối Nội dung, dưới bất kỳ hình thức nào trên toàn thế giới, bằng mọi ngôn ngữ và trên tất cả các phương tiện truyền thông, cho dù bây giờ đã được biết đến hay đã được phát minh ra , bao gồm nhưng không giới hạn ở điện thoại di động, internet, truyền hình và các sản phẩm kịch tính.",
+    "ACCESS_ALL": "Bạn {NAME} tuyên bố và đảm bảo rằng bạn sở hữu {CONTENT} (\"Nội dung\") hoặc bạn là người được cấp phép được ủy quyền của chủ sở hữu bản quyền và bạn đã không hứa hoặc cung cấp Nội dung cho bất kỳ cá nhân hoặc tổ chức nào khác để họ sử dụng riêng.\n\nCụ thể, bạn cấp cho Reuters và những người được cấp phép quyền vĩnh viễn để xuất bản, tái xuất bản, hiển thị, chỉnh sửa, chuẩn bị các tác phẩm phái sinh và phân phối Nội dung, dưới bất kỳ hình thức nào trên toàn thế giới, bằng mọi ngôn ngữ và trên tất cả các phương tiện truyền thông, cho dù bây giờ đã được biết đến hay đã được phát minh ra , bao gồm nhưng không giới hạn ở điện thoại di động, internet, truyền hình và các sản phẩm kịch tính.\n\nBạn cũng đồng ý rằng Reuters có thể cấp phép và bán Nội dung trong kho lưu trữ trực tuyến của mình cho những người khác có thể xuất bản, hiển thị và phân phối lại Nội dung ở mọi nơi trên thế giới",
+    "TIME_LIMITED": "Bạn {NAME} tuyên bố và đảm bảo rằng bạn sở hữu {CONTENT} (\"Nội dung”), hoặc rằng bạn được ủy quyền của chủ sở hữu bản quyền và bạn đã không hứa hoặc cung cấp Nội dung cho bất kỳ cá nhân hoặc tổ chức nào khác để sử dụng độc quyền của họ.\n\nBạn đồng ý rằng Reuters có thể xuất bản và phân phối Nội dung cho khách hàng của Reuters, bao gồm các tổ chức tin tức khác trên thế giới, để họ sử dụng, hiển thị và xuất bản thêm.\n\nCụ thể, bạn cấp cho Reuters và những người được cấp phép quyền xuất bản, tái xuất bản, hiển thị, chỉnh sửa, chuẩn bị các nội dung phát sinh và phân phối Nội dung, dưới bất kỳ hình thức nào trên toàn thế giới, bằng mọi ngôn ngữ và trên tất cả các phương tiện truyền thông, cho dù bây giờ đã được biết đến hay đã được phát minh ra, bao gồm nhưng không giới hạn ở điện thoại di động, internet, truyền hình và các sản phẩm sân khấu, với điều kiện sau ngày kể sau {DATE}, Nội dung sẽ không được tiếp tục khai thác.\n\nQuyền lưu trữ và hiển thị Nội dung như đã được sử dụng hoặc xuất bản trước ngày đó, là vĩnh viễn.",
+    "DRONE": "Bạn đại diện cho, và đảm bảo rằng Nội dung nêu trên, theo hiểu biết tốt nhất của bạn, là bản mô tả chính xác và trung thực về các sự kiện được mô tả trong đó, và việc thu thập tin tức của bạn về Nội dung trên không liên quan đến việc vi phạm bất kỳ luật nào hoặc vi phạm các quyền của bất kỳ bên thứ ba nào, bao gồm các tổn hại về người hoặc tài sản.\n\nBạn đồng ý với các điều khoản bồi hoàn và đảm bảo cho Reuters không bị ảnh hưởng từ bất kỳ khiếu nại, tổn thất, thiệt hại và / hoặc chi phí nào, bao gồm phí luật sư, phát sinh từ việc bạn vi phạm các điều khoản và bảo đảm được đưa ra trong đoạn văn bản này"
+  },
+  "KHMER": {
+    "NO_RESALES": "អ្នក {NAME} តំណាងនិងធានាថាអ្នកជាម្ចាស់ {CONTENT} (“ មាតិកា”) ឬអ្នកគឺជាអ្នកតំណាងដែលមានការអនុញ្ញាតពីម្ចាស់រក្សាសិទ្ធិហើយអ្នកមិនបានសន្យាឬផ្តល់ ខ្លឹមសារទៅកាន់បុគ្គលឬអង្គភាពផ្សេងទៀតលើមូលដ្ឋានផ្តាច់មុខ។\n\nអ្នកយល់ព្រមថារ៉យទ័រអាចនឹងចុះផ្សាយនិងចែកចាយមាតិកាទៅអតិថិជនរបស់រ៉យទ័រដែលរួមមានអង្គភាពព័ត៌មានផ្សេងទៀតនៅជុំវិញពិភពលោកសម្រាប់ការប្រើប្រាស់ការបង្ហាញនិងការបោះពុម្ពផ្សាយរបស់ពួកគេ។ ជាពិសេសអ្នកផ្តល់ឱ្យរ៉យទ័រនិងអាជ្ញាប័ណ្ណរបស់ខ្លួននូវសិទ្ធិជារៀងរហូតក្នុងការបោះពុម្ពផ្សាយបោះពុម្ពផ្សាយកែសំរួលរៀបចំស្នាដៃចម្លងនិងចែកចាយមាតិកាតាមទំរង់ណាមួយនៅពាសពេញពិភពលោកគ្រប់ភាសានិងគ្រប់ប្រព័ន្ធផ្សព្វផ្សាយមិនថាឥឡូវត្រូវបានគេស្គាល់រឺបង្កើតនៅពេលនេះទេ រួមបញ្ចូលតែមិនមានកំណត់ចំពោះផលិតផលចល័តអ៊ិនធឺណិតទូរទស្សន៍និងផលិតកម្មគួរឱ្យចាប់អារម្មណ៍។",
+    "ACCESS_ALL": "អ្នក {NAME} តំណាងនិងធានាថាអ្នកជាម្ចាស់ {CONTENT} (“ មាតិកា”) ឬអ្នកគឺជាអ្នកតំណាងដែលមានការអនុញ្ញាតពីម្ចាស់រក្សាសិទ្ធិហើយអ្នកមិនបានសន្យាឬផ្តល់ ខ្លឹមសារទៅកាន់បុគ្គលឬអង្គភាពផ្សេងទៀតលើមូលដ្ឋានផ្តាច់មុខ។\n\nអ្នកយល់ព្រមថារ៉យទ័រអាចនឹងចុះផ្សាយនិងចែកចាយមាតិកាទៅអតិថិជនរបស់រ៉យទ័រដែលរួមមានអង្គភាពព័ត៌មានផ្សេងទៀតនៅជុំវិញពិភពលោកសម្រាប់ការប្រើប្រាស់ការបង្ហាញនិងការបោះពុម្ពផ្សាយរបស់ពួកគេ។ ជាពិសេសអ្នកផ្តល់ឱ្យរ៉យទ័រនិងអាជ្ញាប័ណ្ណរបស់ខ្លួននូវសិទ្ធិជារៀងរហូតក្នុងការបោះពុម្ពផ្សាយបោះពុម្ពផ្សាយកែសំរួលរៀបចំស្នាដៃចម្លងនិងចែកចាយមាតិកាតាមទំរង់ណាមួយនៅពាសពេញពិភពលោកគ្រប់ភាសានិងគ្រប់ប្រព័ន្ធផ្សព្វផ្សាយមិនថាឥឡូវត្រូវបានគេស្គាល់រឺបង្កើតនៅពេលនេះទេ រួមបញ្ចូលតែមិនមានកំណត់ចំពោះផលិតផលចល័តអ៊ិនធឺណិតទូរទស្សន៍និងផលិតកម្មគួរឱ្យចាប់អារម្មណ៍។\n\nអ្នកយល់ព្រមបន្ថែមទៀតថារ៉យទ័រអាចផ្តល់សិទ្ធិនិងលក់ខ្លឹមសារនៅក្នុងប័ណ្ណសារតាមអ៊ិនធឺរណែតរបស់ខ្លួនដល់អ្នកផ្សេងទៀតដែលអាចផ្សព្វផ្សាយបង្ហាញនិងចែកចាយមាតិកាឡើងវិញនៅគ្រប់ទីកន្លែងក្នុងពិភពលោក។",
+    "TIME_LIMITED": "អ្នក {NAME} តំណាងនិងធានាថាអ្នកជាម្ចាស់ {CONTENT} (“ មាតិកា”) ឬអ្នកគឺជាអ្នកតំណាងដែលមានការអនុញ្ញាតពីម្ចាស់រក្សាសិទ្ធិហើយអ្នកមិនបានសន្យាឬផ្តល់ ខ្លឹមសារទៅកាន់បុគ្គលឬអង្គភាពផ្សេងទៀតលើមូលដ្ឋានផ្តាច់មុខ។\n\nអ្នកយល់ព្រមថារ៉យទ័រអាចនឹងចុះផ្សាយនិងចែកចាយមាតិកាទៅអតិថិជនរបស់រ៉យទ័រដែលរួមមានអង្គភាពព័ត៌មានផ្សេងទៀតនៅជុំវិញពិភពលោកសម្រាប់ការប្រើប្រាស់ការបង្ហាញនិងការបោះពុម្ពផ្សាយរបស់ពួកគេ។ ជាពិសេសអ្នកផ្តល់ឱ្យរ៉យទ័រនិងអាជ្ញាប័ណ្ណរបស់ខ្លួននូវសិទ្ធិជារៀងរហូតក្នុងការបោះពុម្ពផ្សាយបោះពុម្ពផ្សាយកែសំរួលរៀបចំស្នាដៃចម្លងនិងចែកចាយមាតិកាតាមទំរង់ណាមួយនៅពាសពេញពិភពលោកគ្រប់ភាសានិងគ្រប់ប្រព័ន្ធផ្សព្វផ្សាយមិនថាឥឡូវត្រូវបានគេស្គាល់រឺបង្កើតនៅពេលនេះទេ រួមបញ្ចូលប៉ុន្តែមិនមានកំណត់ចំពោះអ៊ិនធឺរណែតទូរទស្សន៍និងផលិតកម្មយ៉ាងច្រើនដែលបានផ្តល់ថាបន្ទាប់ពី {DATE} មិនមានការប្រើថ្មីនៃខ្លឹមសារឡើយ។\n\nសិទ្ធិក្នុងការធ្វើជាម្ចាស់ផ្ទះនិងបង្ហាញមាតិកាដូចដែលត្រូវបានប្រើប្រាស់ឬបោះពុម្ពផ្សាយមុនកាលបរិច្ឆេទនោះគឺស្ថិតស្ថេរ។",
+    "DRONE": "អ្នកតំណាងនិងធានាថាខ្លឹមសារដែលបានដាក់ជូនគឺល្អបំផុតចំពោះចំណេះដឹងរបស់អ្នកការបង្ហាញពីព្រឹត្តិការណ៍ដែលមានលក្ខណៈត្រឹមត្រូវនិងពិតហើយគ្មានព័ត៌មានណាមួយដែលអ្នកបានប្រមូលសម្រាប់មាតិកាពាក់ព័ន្ធនឹងការបំពានច្បាប់ណាមួយឬការរំលោភលើសិទ្ធិរបស់ តតិយជនណាមួយរួមទាំងរបួសដល់មនុស្សឬទ្រព្យសម្បត្តិ។\n\nអ្នកយល់ព្រមសងជំងឺចិត្តនិងកាន់រ៉យទ័រដោយគ្មានការចោទប្រកាន់ការខាតបង់ការខូចខាតនិង / ឬការចំណាយរួមទាំងថ្លៃឈ្នួលមេធាវីសមរម្យដែលកើតឡើងពីការរំលោភលើការតំណាងនិងការធានាដែលមានចែងក្នុងកថាខណ្ឌនេះ។"
+  },
+  "HINDI": {
+    "NO_RESALES": "आप {NAME} प्रतिनिधित्व करते हैं और वारंट करते हैं कि आप {CONTENT} (\"सामग्री\") के मालिक हैं, या कि आप कॉपीराइट स्वामी के अधिकृत लाइसेंसधारी हैं, और आपने किसी अन्य व्यक्ति या संस्थाओं को सामग्री का वादा नहीं किया है या प्रदान नहीं किया है उनके अनन्य उपयोग।\n\nआप सहमत हैं कि रॉयटर्स अपने आगे के उपयोग, प्रदर्शन और प्रकाशन के लिए दुनिया भर के अन्य समाचार संगठनों में शामिल हैं, जो रॉयटर्स के ग्राहकों को सामग्री प्रकाशित और वितरित कर सकते हैं।\n\nविशेष रूप से, आप रॉयटर्स और उसके लाइसेंसधारियों को प्रकाशित करने, पुनर्प्रकाशित करने, प्रदर्शित करने, संपादित करने, व्युत्पन्न कार्यों को तैयार करने और सामग्री वितरित करने का सदा अधिकार देते हैं, दुनिया भर में, किसी भी रूप में सभी भाषाओं में और सभी मीडिया में, चाहे वह अब जाना जाता है या उसके बाद तैयार हो गया है सहित, लेकिन मोबाइल, इंटरनेट, टेलीविजन और नाटकीय प्रस्तुतियों तक सीमित नहीं है।",
+    "ACCESS_ALL": "आप {NAME} प्रतिनिधित्व करते हैं और वारंट करते हैं कि आप {CONTENT} (\"सामग्री\") के मालिक हैं, या कि आप कॉपीराइट स्वामी के अधिकृत लाइसेंसधारी हैं, और आपने किसी अन्य व्यक्ति या संस्थाओं को सामग्री का वादा नहीं किया है या प्रदान नहीं किया है उनके अनन्य उपयोग।\n\nआप सहमत हैं कि रॉयटर्स अपने आगे के उपयोग, प्रदर्शन और प्रकाशन के लिए दुनिया भर के अन्य समाचार संगठनों में शामिल हैं, जो रॉयटर्स के ग्राहकों को सामग्री प्रकाशित और वितरित कर सकते हैं।\n\nविशेष रूप से, आप रॉयटर्स और उसके लाइसेंसधारियों को प्रकाशित करने, पुनर्प्रकाशित करने, प्रदर्शित करने, संपादित करने, व्युत्पन्न कार्यों को तैयार करने और सामग्री वितरित करने का सदा अधिकार देते हैं, दुनिया भर में, किसी भी रूप में सभी भाषाओं में और सभी मीडिया में, चाहे वह अब जाना जाता है या उसके बाद तैयार हो गया है सहित, लेकिन मोबाइल, इंटरनेट, टेलीविजन और नाटकीय प्रस्तुतियों तक सीमित नहीं है।\n\nआप इस बात से सहमत हैं कि रॉयटर्स अपने ऑनलाइन अभिलेखागार में उस सामग्री को लाइसेंस और बेच सकता है जो दुनिया में कहीं भी सामग्री को प्रकाशित, प्रदर्शित और पुन: वितरित कर सकती है।",
+    "TIME_LIMITED": "आप, {NAME}, प्रतिनिधित्व करते हैं और वारंट करते हैं कि आप {CONTENT} (\"सामग्री\") के स्वामी हैं, या आप कॉपीराइट स्वामी के अधिकृत प्रतिनिधि हैं, और आपने किसी अन्य व्यक्ति को सामग्री का वादा नहीं किया है या प्रदान नहीं किया है। या एक विशेष आधार पर संस्था।\n\nआप सहमत हैं कि रॉयटर्स अपने आगे के उपयोग, प्रदर्शन और प्रकाशन के लिए दुनिया भर के अन्य समाचार संगठनों में शामिल हैं, जो रॉयटर्स के ग्राहकों को सामग्री प्रकाशित और वितरित कर सकते हैं। विशेष रूप से, आप रॉयटर्स और उसके लाइसेंसधारियों को प्रकाशित करने, पुनर्प्रकाशित करने, प्रदर्शित करने, संपादित करने, व्युत्पन्न कार्यों को तैयार करने और सामग्री वितरित करने का अधिकार देते हैं, दुनिया भर में, किसी भी रूप में सभी भाषाओं में और सभी मीडिया में, चाहे वह अब जाना जाता है या उसके बाद तैयार हो गया है सहित, लेकिन मोबाइल, इंटरनेट, टेलीविज़न और नाटकीय प्रस्तुतियों तक सीमित नहीं, बशर्ते कि, {DATE} के बाद, कोई नया उपयोग सामग्री से नहीं किया जाएगा। सामग्री को होस्ट करने और प्रदर्शित करने का अधिकार, जैसा कि उस तिथि से पहले उपयोग या प्रकाशित किया गया है, सदा है।",
+    "DRONE": "आप प्रतिनिधित्व करते हैं और वारंट करते हैं कि प्रस्तुत सामग्री आपके ज्ञान में सबसे अच्छी तरह से चित्रित की गई घटनाओं का एक सटीक और सच्चा चित्रण है, और यह कि सामग्री के लिए आपके किसी भी समाचार-पत्र में किसी भी कानून के उल्लंघन या अधिकारों का उल्लंघन शामिल नहीं है। किसी भी तीसरे पक्ष, व्यक्तियों या संपत्ति को चोट सहित।\n\nआप रॉयटर्स को क्षतिपूर्ति देने और रखने से सहमत हैं और इस अनुच्छेद में किए गए प्रतिनिधित्व और वारंटियों के उल्लंघन से उत्पन्न होने वाले उचित वकीलों की फीस सहित किसी भी दावे, नुकसान, हर्जाना\n\nऔर / या खर्च के खिलाफ हानिरहित हैं।"
+  },
+  "BURMESE": {
+    "NO_RESALES": "သင {NAME} ကနေရိုက်ကူးထားတဲ့ ရဲဝန်ထမ်းများ လုံခြုံ​ရေးကင်မရာအား ​လေးခွနှင့်ထု​နေသည့်ဗီဒီယိုကို မူပိုင်ခွင့်ရရှိထားပါသည် {CONTENT} (“ဗီဒီယို အကြောင်းအရာ”) ၊ သို့မဟုတ် မူရင်းဗီဒီယိုဧ။် မူပိုင်ခွင့်ပိုင်ဆိုင်ထားသူဖြစ်ပြီး ဘယ်ပုဂ္ဂိုလ်တစ်ဦးတစ်ယောက်ကိုမျှအထူးသီးသန့် အသုံးပြုခွင့်ပေးထားခြင်းမရှိကြောင်း ဝန်ခံကတိထားရပါမည်။\n\nသင်ဧ။် ဗီဒီယိုကို ရိုက်တာသတင်းဌာန (Reuters) နှင့် ကမ္ဘာတစ်ဝှမ်းရှိအခြားသတင်းဌာနများကို အသုံးပြုခွင့်၊ ထုတ်ဝေခွင့်ပေးနိုင်ပါကြောင်း သဘောတူလက်ခံပါသည်။\n\nသင်သည် အထူးသဖြင့် ရိုက်တာသတင်းဌာနအား သင့်ဗီဒီယိုနှင့် အထဲပါအကြောင်းအရာကို ပြန်လည်ထုတ်ဝေခွင့်၊ပြသခွင့်၊ တည်းဖြတ်ခွင့်၊ ဆင့်ပွားဖြန့်ဝေခွင့်များကို တစ်ခြားနေရာဒေသ၊ အခြားဘာသာစကားအဖြစ်နှင့်အခြားမီဒီယာများ(မိုဘိုင်းဖုန်၊အင်းတာဗျူးနှင့်ဇတ်လမ်းတွဲဆိုင်ရာထုတ်လုပ်ရေးအပါအဝင်)အဖြစ်သို့ ပြောင်းလဲထုတ်ဝေခွင့်ကို သဘောတူကြောင်း ဝန်ခံကတိပေးပါသည်။သင်သည် အထူးသဖြင့် ရိုက်တာသတင်းဌာနအား သင့်ဗီဒီယိုနှင့် အထဲပါအကြောင်းအရာကို ပြန်လည်ထုတ်ဝေခွင့်၊ပြသခွင့်၊ တည်းဖြတ်ခွင့်၊ ဆင့်ပွားဖြန့်ဝေခွင့်များကို တစ်ခြားနေရာဒေသ၊\n\nအခြားဘာသာစကားအဖြစ်နှင့်အခြားမီဒီယာများ(မိုဘိုင်းဖုန်၊အင်းတာဗျူးနှင့်ဇတ်လမ်းတွဲဆိုင်ရာထုတ်လုပ်ရေးအပါအဝင်)အဖြစ်သို့ ပြောင်းလဲထုတ်ဝေခွင့်ကို သဘောတူကြောင်း ဝန်ခံကတိပေးပါသည်။",
+    "ACCESS_ALL": "သင် {NAME} သည် ရိုက်ကူးထားသော ဗီဒီယိုရဲ့ ပို်င်ဆိုင်ရှင်ဖြစ်ပြီး {CONTENT} (“ဗီဒီယို အကြောင်းအရာ”) ၊ သို့မဟုတ် မူရင်းဗီဒီယိုဧ။် မူပိုင်ခွင့်ပိုင်ဆိုင်ထားသူဖြစ်ပြီး ဘယ်ပုဂ္ဂိုလ်တစ်ဦးတစ်ယောက်ကိုမျှအထူးသီးသန့် အသုံးပြုခွင့်ပေးထားခြင်းမရှိကြောင်း ဝန်ခံကတိထားရပါမည်။\n\nသင်ဧ။် ဗီဒီယိုကို ရိုက်တာသတင်းဌာန (Reuters) နှင့် ကမ္ဘာတစ်ဝှမ်းရှိအခြားသတင်းဌာနများကို အသုံးပြုခွင့်၊ ထုတ်ဝေခွင့်ပေးနိုင်ပါကြောင်း သဘောတူလက်ခံပါသည်။\n\nသင်သည် အထူးသဖြင့် ရိုက်တာသတင်းဌာနအား သင့်ဗီဒီယိုနှင့် အထဲပါအကြောင်းအရာကို ပြန်လည်ထုတ်ဝေခွင့်၊ပြသခွင့်၊ တည်းဖြတ်ခွင့်၊ ဆင့်ပွားဖြန့်ဝေခွင့်များကို တစ်ခြားနေရာဒေသ၊ အခြားဘာသာစကားအဖြစ်နှင့်အခြားမီဒီယာများ(မိုဘိုင်းဖုန်၊အင်းတာဗျူးနှင့်ဇတ်လမ်းတွဲဆိုင်ရာထုတ်လုပ်ရေးအပါအဝင်)အဖြစ်သို့ ပြောင်းလဲထုတ်ဝေခွင့်ကို သဘောတူကြောင်း ဝန်ခံကတိပေးပါသည်။\n\nသင်သည် ရိုက်တာသတင်းဌာနအား ထုတ်ဝေခွင့်လိုင်စင်နှင့် အခြားသောသတင်းဌာနများဧ။် မည်သည့်နေရာဒေသမဆို အွန်လိုင်းပေါ်တွင် ရောင်းချဖြန့်ဝေပိုင်ခွင့်ကို ထပ်လောင်း သဘောတူခွင့်ပြုပါသည်။"
+  },
+  "TAGALOG": {
+    "NO_RESALES": "Ikaw {NAME}, ay kumakatawan at ginagarantiyahan na ikaw ay nagmamay-ari ng mga visual ng {CONTENT} (ang Content\"), o ikaw ay may pahintulot ng may ari ng lisensya o copyright owner, at hindi mo ipinangako o ibinigay ang Content sa ibang mga tao o entity para sa kanilang eksklusibong paggamit.\n\nSumasang-ayon ka na maaaring mai-publish at maipamahagi ng Reuters ang Content sa mga customer nito, na kasama ang iba pang mga news organizations sa buong mundo, para sa kanilang karagdagang paggamit, pagpapakita at paglalathala.\n\nPartikular, binibigyan mo ang Reuters at ang kanyang mga licensees na perpetwal na mailathala, maipakita, ma-edit, at maipamahagi ang materyal o content sa kahit na anong porma sa buong mundo, sa lahat ng wika at lahat ng media, kilala man o hindi, kasama ngunit hindi limitado ang internet, mobile, telebisyon at mga dramatikong produksyon.",
+    "ACCESS_ALL": "Ikaw {NAME}, ay kumakatawan at ginagarantiyahan na ikaw ay nagmamay-ari ng mga visual ng {CONTENT} (ang Content\"), o ikaw ay may pahintulot ng may ari ng lisensya o copyright owner, at hindi mo ipinangako o ibinigay ang Content sa ibang mga tao o entity para sa kanilang eksklusibong paggamit.\n\nSumasang-ayon ka na maaaring mai-publish at maipamahagi ng Reuters ang Content sa mga customer nito, na kasama ang iba pang mga news organizations sa buong mundo, para sa kanilang karagdagang paggamit, pagpapakita at paglalathala.\n\nPartikular, binibigyan mo ang Reuters at ang kanyang mga licensees na perpetwal na mailathala, maipakita, ma-edit, at maipamahagi ang materyal o content sa kahit na anong porma sa buong mundo, sa lahat ng wika at lahat ng media, kilala man o hindi, kasama ngunit hindi limitado ang internet, mobile, telebisyon at mga dramatikong produksyon.\n\nSumang-ayon ka rin na maaaring lisensyahan at ibenta ng Reuters ang Content sa online archive nito sa iba na maaaring mag-publish, magpakita at muling ipamahagi ang Content saanman sa mundo.",
+    "TIME_LIMITED": "Ikaw {NAME}, ay kumakatawan at ginagarantiyahan na ikaw ay nagmamay-ari ng mga visual ng {CONTENT} (ang Content\"), o ikaw ay may pahintulot ng may ari ng lisensya o copyright owner, at hindi mo ipinangako o ibinigay ang Content sa ibang mga tao o entity para sa kanilang eksklusibong paggamit.\n\nSumasang-ayon ka na maaaring mai-publish at maipamahagi ng Reuters ang Content sa mga customer nito, na kasama ang iba pang mga news organizations sa buong mundo, para sa kanilang karagdagang paggamit, pagpapakita at paglalathala.\n\nPartikular, binibigyan mo ang Reuters at ang kanyang mga licensees na perpetwal na mailathala, maipakita, ma-edit, at maipamahagi ang materyal o content sa kahit na anong porma sa buong mundo, sa lahat ng wika at lahat ng media, kilala man o hindi, kasama ngunit hindi limitado ang internet, mobile, telebisyon at mga dramatikong produksyon, sa kondisyon na, pagkatapos ng {DATE}, walang mga bagong gagamitin ang Content.\n\nAng karapatang mag-host at ipakita ang Content, tulad ng ginamit o na-publish bago ang petsang iyon, ay perpetwal.",
+    "DRONE": "Ikaw ay kinakatawan at ginagarantiyahan mo na ang naisumite na Content, sa abot ng iyong kaalaman, ay isang tumpak at totoong paglalarawan ng mga pangyayaring nakalarawan dito, at na wala sa iyong pagtitipon ng balita para sa Content na kasangkot ang paglabag sa anumang mga batas o paglabag sa mga karapatan ng anumang third party, kabilang ang pinsala sa mga tao o pag-aari.\n\nSumasang-ayon ka na ipawalang sala ang Reuters sa lahat ng porma, sa anumang mga paghahabol, pagkalugi, pinsala at / o gastos, kabilang ang makatuwirang bayarin ng mga abugado, na nagmula sa paglabag sa representasyon at mga garantiya na ginawa sa talatang ito."
+  },
+  "BOSNIAN": {
+    "ACCESS_ALL": "Vi, {NAME}, izjavljujete i garantujete da ste vlasnik snimka/fotografije {CONTENT} („Sadržaj“) ili da ste ovlašćeni nosilac licence vlasnika autorskih prava i da niste obećali ili dali Sadržaj bilo kom drugom licu ili entitetu za njihovu isključivu upotrebu.\n\nSaglasni ste da Reuters može da objavi i distribuira sadržaj Reutersovim klijentima, koji uključuju druge novinske organizacije širom sveta, za njihovu dalju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu i njegovim nositeljima licence trajno pravo da objavljuju, ponovo objavljuju, prikazuju, uređuju, pripremaju izvedena dela i distribuiraju Sadržaj, u bilo kom obliku širom sveta, na bilo kom jeziku i u bilo kom mediju, bez obzira da li su trenutno poznati ili stvoreni ubuduće, uključujući ali ne ograničavajući se na mobilne, internet, televizijske i dramske produkcije.\n\nDalje ste saglasni da Reuters može da licencira i prodaje Sadržaj u svojoj onlajn arhivi drugima, koji mogu da objavljuju, prikazuju i redistribuiraju sadržaj bilo gde u svetu.",
+    "NO_RESALES": "Vi, {NAME}, izjavljujete i garantujete da ste vlasnik snimka/fotografije {CONTENT} („Sadržaj“) ili da ste ovlašćeni nosilac licence vlasnika autorskih prava i da niste obećali ili dali Sadržaj bilo kom drugom licu ili entitetu za njihovu isključivu upotrebu.\n\nSaglasni ste da Reuters može da objavi i distribuira sadržaj Reutersovim klijentima, koji uključuju druge novinske organizacije širom sveta, za njihovu dalju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu i njegovim nositeljima licence trajno pravo da objavljuju, ponovo objavljuju, prikazuju, uređuju, pripremaju izvedena dela i distribuiraju Sadržaj, u bilo kom obliku širom sveta, na bilo kom jeziku i u bilo kom mediju, bez obzira da li su trenutno poznati ili stvoreni ubuduće, uključujući ali ne ograničavajući se na mobilne, internet, televizijske i dramske produkcije.",
+    "DRONE": "Izjavljujete i garantujete da je dostavljeni sadržaj, prema vašem najboljem saznanju, tačan i istinit prikaz događaja koji su u njemu prikazani i da vaše prikupljanje vesti o sadržaju ni u jednom trenutku nije uključivalo bilo kakvo kršenje zakona ili prava bilo koje treće strane, uključujući povrede osoba ili imovinsku štetu. Saglasni ste da obeštetite i oslobodite Reuters od svih potraživanja, gubitaka, štete i/ili troškova, uključujući razumne advokatske honorare, koji bi proistekli iz vašeg kršenja datih izjava i garancija iz ovog paragrafa."
+  },
+  "BULGARIAN": {
+    "ACCESS_ALL": "Моля да потвърдите, че Вие {NAME} представлявате и гарантирате, че притежавате {CONTENT} или че Вие сте упълномощен лицензополучател на собственика на авторските права и не сте обещавали или предоставяли Съдържанието на други лица или организации за тяхна изключителна употреба.\n\nВие се съгласявате, че Ройтерс може да публикува и разпространява Съдържанието до клиентите на Ройтерс, които могат да включват други медийни организации по света, за по-нататъшното им показване, употреба и публикуване. По-конкретно, Вие предоставяте на Ройтерс и неговите лицензодържатели постоянното право да публикува, пре-публикува, излага, редактира, подготвя производни произведения и разпространява Съдържанието под каквато и да е форма в целия свят, на всички езици и всички медии, независимо дали е известно към момента или е разработено на по-късен етап, включително, но не и ограничено до мобилни, интернет, телевизионни и драматични продукции.\n\nВие също така се съгласявате че Ройтерс може да лицензира и да продава Съдържанието в своя онлайн архив на други, които могат да публикуват, излагат и редистрибутират Съдържанието навсякъде по света.",
+    "NO_RESALES": "Моля да потвърдите, че Вие {NAME} представлявате и гарантирате, че притежавате {CONTENT} или че Вие сте упълномощен лицензополучател на собственика на авторските права и не сте обещавали или предоставяли Съдържанието на други лица или организации за тяхна изключителна употреба.\n\nВие се съгласявате, че Ройтерс може да публикува и разпространява Съдържанието до клиентите на Ройтерс, които могат да включват други медийни организации по света, за по-нататъшното им показване, употреба и публикуване. По-конкретно, Вие предоставяте на Ройтерс и неговите лицензодържатели постоянното право да публикува, пре-публикува, излага, редактира, подготвя производни произведения и разпространява Съдържанието под каквато и да е форма в целия свят, на всички езици и всички медии, независимо дали е известно към момента или е разработено на по-късен етап, включително, но не и ограничено до мобилни, интернет, телевизионни и драматични продукции.",
+    "DRONE": "Вие заявявате и гарантирате, че изпратеното съдържание е, доколкото ви е известно, точно и правдиво изобразяване на събитията, описани в него, и че нито едно от събраните от вас новини за съдържанието не е свързано с нарушаване на закони или нарушаване на правата. на трета страна, включително нараняване на хора или имущество. Вие се съгласявате да обезщетите и предпазите Ройтерс от и срещу всякакви искове, загуби, щети и/или разходи, включително разумни адвокатски хонорари, произтичащи от нарушение на представителството и гаранциите, дадени в този параграф."
+  },
+  "CROATIAN": {
+    "ACCESS_ALL": "Vi, {NAME}, izjavljujete i jamčite da ste vlasnik snimke/fotografije {CONTENT} (\"Sadržaj\") ili da ste ovlašteni nositelj licence vlasnika autorskih prava i da niste obećali niti dali Sadržaj nijednoj drugoj fizičkoj ili pravnoj osobi za njihovu isključivu upotrebu.\n\nPristajete da Reuters može objavljivati ​​i distribuirati Sadržaj Reutersovim klijentima, što uključuje druge novinske organizacije diljem svijeta, za njihovu daljnju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu, i njegovim nositeljima licence, trajno pravo objavljivanja, ponovnog objavljivanja, prikazivanja, uređivanja, pripremanja izvedenih djela i distribucije sadržaja, u bilo kojem obliku diljem svijeta, na svim jezicima i u svim medijima, bilo da su trenutno poznati ili ubuduće stvoreni, uključujući, ali nije ograničeno, na mobilne, internetske, televizijske i dramske produkcije.\n\nNadalje pristajete da Reuters može licencirati i prodavati Sadržaj u svojoj online arhivi drugima, koji mogu objavljivati, prikazivati ​​i redistribuirati Sadržaj bilo gdje u svijetu.",
+    "NO_RESALES": "Vi, {NAME}, izjavljujete i jamčite da ste vlasnik snimke/fotografije {CONTENT} (\"Sadržaj\") ili da ste ovlašteni nositelj licence vlasnika autorskih prava i da niste obećali niti dali Sadržaj nijednoj drugoj fizičkoj ili pravnoj osobi za njihovu isključivu upotrebu.\n\nPristajete da Reuters može objavljivati ​​i distribuirati Sadržaj Reutersovim klijentima, što uključuje druge novinske organizacije diljem svijeta, za njihovu daljnju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu, i njegovim nositeljima licence, trajno pravo objavljivanja, ponovnog objavljivanja, prikazivanja, uređivanja, pripremanja izvedenih djela i distribucije sadržaja, u bilo kojem obliku diljem svijeta, na svim jezicima i u svim medijima, bilo da su trenutno poznati ili ubuduće stvoreni, uključujući, ali nije ograničeno, na mobilne, internetske, televizijske i dramske produkcije.",
+    "DRONE": "Izjavljujete i jamčite da je dostavljeni sadržaj, koliko najbolje znate, točan i istinit prikaz događaja koji su u njemu prikazani i da vaše prikupljanje vijesti o sadržaju ni u jednom trenutku nije uključivalo kršenje bilo kojeg zakona ili prava, bilo koje treće strane, uključujući ozljeđivanje osoba ili oštećenja imovine. Pristajete da ćete obeštetiti i osloboditi Reuters od bilo kakvih potraživanja, gubitaka, šteta i/ili troškova, uključujući razumne odvjetničke naknade, proizašlih iz kršenja izjava i jamstava iz ovog paragrafa."
+  },
+  "CZECH": {
+    "ACCESS_ALL": "Potvrďte prosím, že Vy, {NAME} prohlašujete a zaručujete, že vlastníte {CONTENT}(“Obsah”], nebo že jste autorizovaným držitelem licence vlastníka autorských práv a neslíbil/a jste,ani neposkytl/a, tento Obsah žádným osobám nebo objektům pro jejich exkluzivní použití.\n\nSouhlasíte s tím, že společnost Reuters může publikovat a distribuovat Obsah klientům společnosti Reuters, mezi něž patří další mediální organizace po celém světě, pro jejich další využití, zobrazení a publikaci. Konkrétně dáváte společnosti Reuters a jejím držitelům licence trvalé právo publikovat, znovu publikovat, zobrazovat, editovat, připravovat odvozená díla a distribuovat Obsah, a to v jakékoliv formě po celém světě, ve všech jazycích a všech médiích, ať už nyní známých nebo dále navržených, včetně mobilních, internetových, televizních a dramatických produkcí.\n\nDále souhlasíte s tím, že společnost Reuters může licensovat a prodávat Obsah ve svém online archivu dalším osobám a subjektům, které mohou publikovat, zobrazovat a šířit Obsah kdekoliv po světě.",
+    "NO_RESALES": "Potvrďte prosím, že Vy, {NAME} prohlašujete a zaručujete, že vlastníte {CONTENT}(“Obsah”], nebo že jste autorizovaným držitelem licence vlastníka autorských práv a neslíbil/a jste,ani neposkytl/a, tento Obsah žádným osobám nebo objektům pro jejich exkluzivní použití.\n\nSouhlasíte s tím, že společnost Reuters může publikovat a distribuovat Obsah klientům společnosti Reuters, mezi něž patří další mediální organizace po celém světě, pro jejich další využití, zobrazení a publikaci. Konkrétně dáváte společnosti Reuters a jejím držitelům licence trvalé právo publikovat, znovu publikovat, zobrazovat, editovat, připravovat odvozená díla a distribuovat Obsah, a to v jakékoliv formě po celém světě, ve všech jazycích a všech médiích, ať už nyní známých nebo dále navržených, včetně mobilních, internetových, televizních a dramatických produkcí."
+  },
+  "DANISH": {
+    "ACCESS_ALL": "Bekræft venligst, at du, {NAME}, erklærer og garanterer, at du ejer {CONTENT} (\"Indholdet\"), eller at du er autoriseret licenstager hos ejeren af ophavsretten, og at du ikke har givet løfte om eller leveret Indholdet til andre personer eller enheder til disses eksklusive brug.\n\nDu accepterer, at Reuters kan offentliggøre og distribuere Indholdet til Reuters' kunder, som omfatter andre nyhedsorganisationer over hele verden, til deres videre brug, visning og offentliggørelse.\n\nSpecifikt giver du Reuters og dets licenstagere evig ret til at offentliggøre, genudgive, vise, redigere, skabe afledte værker af og distribuere Indholdet i enhver form over hele verden, på alle sprog og i alle medier, hvad enten de er kendte nu eller bliver udviklet i fremtiden, omfattende men ikke begrænset til mobil, internet, tv og dramatiske produktioner.\n\nDu accepterer endvidere, at Reuters kan licensere og sælge Indholdet i sit onlinearkiv til andre, som kan offentliggøre, vise og videredistribuere Indholdet overalt i verden.",
+    "NO_RESALES": "Bekræft venligst, at du, {NAME}, erklærer og garanterer, at du ejer {CONTENT} (\"Indholdet\"), eller at du er autoriseret licenstager hos ejeren af ophavsretten, og at du ikke har givet løfte om eller leveret Indholdet til andre personer eller enheder til disses eksklusive brug.\n\nDu accepterer, at Reuters kan offentliggøre og distribuere Indholdet til Reuters' kunder, som omfatter andre nyhedsorganisationer over hele verden, til deres videre brug, visning og offentliggørelse.\n\nSpecifikt giver du Reuters og dets licenstagere evig ret til at offentliggøre, genudgive, vise, redigere, skabe afledte værker af og distribuere Indholdet i enhver form over hele verden, på alle sprog og i alle medier, hvad enten de er kendte nu eller bliver udviklet i fremtiden, omfattende men ikke begrænset til mobil, internet, tv og dramatiske produktioner.",
+    "DRONE": "Du erklærer og garanterer, at det indsendte indhold efter din bedste overbevisning er en nøjagtig og sandfærdig skildring af de begivenheder, der skildres deri, og at ingen af dine nyhedsindsamlinger til indholdet involverede brud på hverken love eller krænkelse af nogen tredjeparts rettigheder, herunder skade på personer eller ejendom. Du accepterer at holde Reuters skadesløs fra og mod alle krav, tab, skader og/eller udgifter, herunder rimelige advokatsalærer, der opstår som følge af brud på den erklæring og de garantier, der er fremsat i dette afsnit."
+  },
+  "GREEK": {
+    "ACCESS_ALL": "Εσείς, {NAME}, δηλώνετε και εγγυάστε ότι είστε κάτοχος {CONTENT} (το \"Περιεχόμενο\") ή ότι είστε ο εξουσιοδοτημένος κάτοχος άδειας χρήσης του κατόχου πνευματικών δικαιωμάτων και δεν έχετε υποσχεθεί ή παρέχετε το Περιεχόμενο σε οποιοδήποτε άλλο πρόσωπο ή οντότητες για αποκλειστική χρήση τους.\n\nΣυμφωνείτε ότι το Reuters μπορεί να δημοσιεύσει και να διανείμει το περιεχόμενο στους πελάτες του Reuters, που περιλαμβάνουν και άλλους ειδησεογραφικούς οργανισμούς σε όλο τον κόσμο, για περαιτέρω χρήση, προβολή και δημοσίευση. Συγκεκριμένα, παρέχετε στο Reuters και τους δικαιοδόχους του το απεριόριστο δικαίωμα να δημοσιεύουν, να αναδημοσιεύουν, να προβάλλουν, να επεξεργάζονται, να παράγουν παράγωγα έργα και να διανέμουν το Περιεχόμενο, σε οποιαδήποτε μορφή σε όλο τον κόσμο, σε όλες τις γλώσσες και σε όλα τα μέσα ενημέρωσης, , συμπεριλαμβανομένων, μεταξύ άλλων, κινητής τηλεφωνίας, διαδικτύου, τηλεόρασης και δραματικών παραγωγών.\n\nΣυμφωνείτε επίσης ότι το Reuters μπορεί να παραχωρήσει άδεια χρήσης και να πουλήσει το Περιεχόμενο στο ηλεκτρονικό του αρχείο σε άλλους που ενδέχεται να δημοσιεύσουν, να προβάλουν και να αναδιανείμουν το Περιεχόμενο οπουδήποτε στον κόσμο.",
+    "NO_RESALES": "Εσείς, {NAME}, δηλώνετε και εγγυάστε ότι είστε κάτοχος {CONTENT} (το \"Περιεχόμενο\") ή ότι είστε ο εξουσιοδοτημένος κάτοχος άδειας χρήσης του κατόχου πνευματικών δικαιωμάτων και δεν έχετε υποσχεθεί ή παρέχετε το Περιεχόμενο σε οποιοδήποτε άλλο πρόσωπο ή οντότητες για αποκλειστική χρήση τους.\n\nΣυμφωνείτε ότι το Reuters μπορεί να δημοσιεύσει και να διανείμει το περιεχόμενο στους πελάτες του Reuters, που περιλαμβάνουν και άλλους ειδησεογραφικούς οργανισμούς σε όλο τον κόσμο, για περαιτέρω χρήση, προβολή και δημοσίευση. Συγκεκριμένα, παρέχετε στο Reuters και τους δικαιοδόχους του το απεριόριστο δικαίωμα να δημοσιεύουν, να αναδημοσιεύουν, να προβάλλουν, να επεξεργάζονται, να παράγουν παράγωγα έργα και να διανέμουν το Περιεχόμενο, σε οποιαδήποτε μορφή σε όλο τον κόσμο, σε όλες τις γλώσσες και σε όλα τα μέσα ενημέρωσης, , συμπεριλαμβανομένων, μεταξύ άλλων, κινητής τηλεφωνίας, διαδικτύου, τηλεόρασης και δραματικών παραγωγών."
+  },
+  "HUNGARIAN": {
+    "ACCESS_ALL": "Kérjük hogy alátámaszt hogy te {NAME} képviseled és szavatolod hogy birtokolod a {CONTENT} (a “Tartalmattot”), vagy hogy te vagy a szerzői jog tulajdonosának engedélyes, és hogy ezt a Tartalmattot nem igérted vagy eladtad bármely személynek vagy szervezetnek a kizárólagos használatukra.\n\nEgyetért hogy Reuters közzéteheti és terjesztheti a Tartalmattot a Reuters ügyfeleknek, ami magában foglalja egyéb hírszervezetek szerte a világon, hogy ezzek ahírszervezetek is használhatnák, megjeleníthetik és közzétehetik. Megengeded Reuters és a engedélyeseinek az örök jogot publikálni, újraközölni, megjeleníteni, szerkeszteni, származtatott műveket készíteni és terjeszteni a Tartalmattot, bármilyen formában, szerte a világon, minden nyelven és minden médiában, akár most ismert, akár a későbbiekben kitalálták, és beleértve, de nem kizárólag, a mobil, internet, televízió és drámai produkciókat.\n\nEgyetért hogy Reuters engedélyt adhat és eladhat a Tartalmattot az online archívumában másoknak, akik publikálhatnak, megjeleníthetik és újra eloszthatják a Tartalmattot szerte a világon.",
+    "NO_RESALES": "Kérjük hogy alátámaszt hogy te {NAME} képviseled és szavatolod hogy birtokolod a {CONTENT} (a “Tartalmattot”), vagy hogy te vagy a szerzői jog tulajdonosának engedélyes, és hogy ezt a Tartalmattot nem igérted vagy eladtad bármely személynek vagy szervezetnek a kizárólagos használatukra.\n\nEgyetért hogy Reuters közzéteheti és terjesztheti a Tartalmattot a Reuters ügyfeleknek, ami magában foglalja egyéb hírszervezetek szerte a világon, hogy ezzek ahírszervezetek is használhatnák, megjeleníthetik és közzétehetik. Megengeded Reuters és a engedélyeseinek az örök jogot publikálni, újraközölni, megjeleníteni, szerkeszteni, származtatott műveket készíteni és terjeszteni a Tartalmattot, bármilyen formában, szerte a világon, minden nyelven és minden médiában, akár most ismert, akár a későbbiekben kitalálták, és beleértve, de nem kizárólag, a mobil, internet, televízió és drámai produkciókat."
+  },
+  "LATVIAN": {
+    "ACCESS_ALL": "Lūdzu apstipriniet, ka Jūs {NAME} garantējiet, ka Jums pieder {CONTENT} (tālāk tekstā “Saturs”), vai arī esat autortiesību īpašnieka pilnvarotais, kā arī iepriekš neesat solījis vai sniedzis ekskluzīvas tiesības uz Saturu nevienai citai personai vai sabiedrībai.\n\nJūs piekrītat, ka Reuters var publicēt un izplatīt saturu Reuters klientiem, tostarp citām ziņu organizācijām visā pasaulē, to turpmākai izmantošanai, attēlošanai un publicēšanai. Konkrēti, Jūs ļaujat Reuters un tās sadarbības organizācijām nepārtrauktas tiesības publicēt, pārpublicēt, attēlot, rediģēt, sagatavot atvasinātus darbus un izplatīt šo saturu jebkurā formā visā pasaulē, visās valodās un visos plašsaziņas līdzekļos, kas tagad ir zināmi vai vēlāk izstrādāti, ieskaitot, bet neaprobežojoties ar mobilajiem, interneta, televīzijas un dramatiskiem produktiem.\n\nTāpat Jūs piekrītat, ka Reuters var licencēt un pārdot šo saturu savā tiešsaistes arhīvā citiem, kuri var publicēt, attēlot un izplatīt šo saturu jebkurā vietā pasaulē.",
+    "NO_RESALES": "Lūdzu apstipriniet, ka Jūs {NAME} garantējiet, ka Jums pieder {CONTENT} (tālāk tekstā “Saturs”), vai arī esat autortiesību īpašnieka pilnvarotais, kā arī iepriekš neesat solījis vai sniedzis ekskluzīvas tiesības uz Saturu nevienai citai personai vai sabiedrībai.\n\nJūs piekrītat, ka Reuters var publicēt un izplatīt saturu Reuters klientiem, tostarp citām ziņu organizācijām visā pasaulē, to turpmākai izmantošanai, attēlošanai un publicēšanai. Konkrēti, Jūs ļaujat Reuters un tās sadarbības organizācijām nepārtrauktas tiesības publicēt, pārpublicēt, attēlot, rediģēt, sagatavot atvasinātus darbus un izplatīt šo saturu jebkurā formā visā pasaulē, visās valodās un visos plašsaziņas līdzekļos, kas tagad ir zināmi vai vēlāk izstrādāti, ieskaitot, bet neaprobežojoties ar mobilajiem, interneta, televīzijas un dramatiskiem produktiem."
+  },
+  "LITHUANIAN": {
+    "ACCESS_ALL": "Prašome, patvirtinti, kad jūs, {NAME}, atstovaujate ir garantuojate, kad jums priklauso {CONTENT} (\"Turinys\"), arba kad esate autorių teisių savininko įgaliotasis licenciatas, o jūs nepažadėjote ar neperdavėte Turinio bet kuriems kitiems asmenims ar subjektams jų išskirtiniam naudojimui.\n\nJūs sutinkate, kad „Reuters“ gali skelbti ir platinti Turinį „Reuters“ klientams, įskaitant kitas naujienų organizacijas visame pasaulyje, jų tolesniam naudojimui, rodymui ir publikavimui.\n\nKonkrečiai, jūs suteikiate „Reuters“ ir jos licencijos turėtojams amžiną teisę publikuoti, perpublikuoti, rodyti, redaguoti, rengti išvestinius darbus ir platinti Turinį bet kokia forma visame pasaulyje, visomis kalbomis ir visose medijose, nesvarbu, ar jau žinomose, ar sukurtose vėliau, įskaitant, bet neapsiribojant, mobiliosiose priemonėse, internete, ir televizijoje.\n\nJūs taip pat sutinkate, kad „Reuters“ gali licencijuoti ir parduoti Turinį savo internetiniame archyve kitiems, kurie gali skelbti, rodyti ir toliau platinti Turinį bet kurioje pasaulio vietoje.",
+    "NO_RESALES": "Prašome, patvirtinti, kad jūs, {NAME}, atstovaujate ir garantuojate, kad jums priklauso {CONTENT} (\"Turinys\"), arba kad esate autorių teisių savininko įgaliotasis licenciatas, o jūs nepažadėjote ar neperdavėte Turinio bet kuriems kitiems asmenims ar subjektams jų išskirtiniam naudojimui.\n\nJūs sutinkate, kad „Reuters“ gali skelbti ir platinti Turinį „Reuters“ klientams, įskaitant kitas naujienų organizacijas visame pasaulyje, jų tolesniam naudojimui, rodymui ir publikavimui.\n\nKonkrečiai, jūs suteikiate „Reuters“ ir jos licencijos turėtojams amžiną teisę publikuoti, perpublikuoti, rodyti, redaguoti, rengti išvestinius darbus ir platinti Turinį bet kokia forma visame pasaulyje, visomis kalbomis ir visose medijose, nesvarbu, ar jau žinomose, ar sukurtose vėliau, įskaitant, bet neapsiribojant, mobiliosiose priemonėse, internete, ir televizijoje."
+  },
+  "MONTENEGRIN": {
+    "ACCESS_ALL": "Vi, {NAME}, izjavljujete i garantujete da ste vlasnik snimka/fotografije {CONTENT} („Sadržaj“) ili da ste ovlašćeni nosilac licence vlasnika autorskih prava i da niste obećali ili dali Sadržaj bilo kom drugom licu ili entitetu za njihovu isključivu upotrebu.\n\nSaglasni ste da Reuters može da objavi i distribuira sadržaj Reutersovim klijentima, koji uključuju druge novinske organizacije širom sveta, za njihovu dalju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu i njegovim nositeljima licence trajno pravo da objavljuju, ponovo objavljuju, prikazuju, uređuju, pripremaju izvedena dela i distribuiraju Sadržaj, u bilo kom obliku širom sveta, na bilo kom jeziku i u bilo kom mediju, bez obzira da li su trenutno poznati ili stvoreni ubuduće, uključujući ali ne ograničavajući se na mobilne, internet, televizijske i dramske produkcije.\n\nDalje ste saglasni da Reuters može da licencira i prodaje Sadržaj u svojoj onlajn arhivi drugima, koji mogu da objavljuju, prikazuju i redistribuiraju sadržaj bilo gde u svetu.",
+    "NO_RESALES": "Vi, {NAME}, izjavljujete i garantujete da ste vlasnik snimka/fotografije {CONTENT} („Sadržaj“) ili da ste ovlašćeni nosilac licence vlasnika autorskih prava i da niste obećali ili dali Sadržaj bilo kom drugom licu ili entitetu za njihovu isključivu upotrebu.\n\nSaglasni ste da Reuters može da objavi i distribuira sadržaj Reutersovim klijentima, koji uključuju druge novinske organizacije širom sveta, za njihovu dalju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu i njegovim nositeljima licence trajno pravo da objavljuju, ponovo objavljuju, prikazuju, uređuju, pripremaju izvedena dela i distribuiraju Sadržaj, u bilo kom obliku širom sveta, na bilo kom jeziku i u bilo kom mediju, bez obzira da li su trenutno poznati ili stvoreni ubuduće, uključujući ali ne ograničavajući se na mobilne, internet, televizijske i dramske produkcije.",
+    "DRONE": "Izjavljujete i garantujete da je dostavljeni sadržaj, prema vašem najboljem saznanju, tačan i istinit prikaz događaja koji su u njemu prikazani i da vaše prikupljanje vesti o sadržaju ni u jednom trenutku nije uključivalo bilo kakvo kršenje zakona ili prava bilo koje treće strane, uključujući povrede osoba ili imovinsku štetu. Saglasni ste da obeštetite i oslobodite Reuters od svih potraživanja, gubitaka, štete i/ili troškova, uključujući razumne advokatske honorare, koji bi proistekli iz vašeg kršenja datih izjava i garancija iz ovog paragrafa."
+  },
+  "NORWEGIAN": {
+    "ACCESS_ALL": "A. PERPETUAL RIGHTS (delete last paragraph for no-resale)\n\nBekreft at du {NAME} representerer og garanterer at du eier {CONTENT} (og alt annet du deler med Reuters) (\"Innholdet\"), eller at du er den autoriserte lisensinnehaveren til opphavsrettseieren, og at du ikke har lovet eller gitt innholdet til andre personer eller enheter for deres eksklusive bruk.\n\nDu godtar at Reuters kan publisere og distribuere innholdet til Reuters' kunder, som inkluderer andre nyhetsorganisasjoner rundt om i verden, for videre bruk, visning og publisering.\n\nSpesifikt gir du Reuters og dets lisensinnehavere den evigvarende rett til å publisere, publisere, vise, redigere, forberede avledede verk av og distribuere innholdet, i enhver form over hele verden, på alle språk og i alle medier, enten det er nå kjent eller senere utviklet , inkludert men ikke begrenset til mobil, internett, TV og dramatiske produksjoner.\n\nDu godtar videre at Reuters kan lisensiere og selge innholdet i sitt nettbaserte arkiv til andre som kan publisere, vise og videredistribuere innholdet hvor som helst i verden.",
+    "NO_RESALES": "A. PERPETUAL RIGHTS (delete last paragraph for no-resale)\n\nBekreft at du {NAME} representerer og garanterer at du eier {CONTENT} (og alt annet du deler med Reuters) (\"Innholdet\"), eller at du er den autoriserte lisensinnehaveren til opphavsrettseieren, og at du ikke har lovet eller gitt innholdet til andre personer eller enheter for deres eksklusive bruk.\n\nDu godtar at Reuters kan publisere og distribuere innholdet til Reuters' kunder, som inkluderer andre nyhetsorganisasjoner rundt om i verden, for videre bruk, visning og publisering.\n\nSpesifikt gir du Reuters og dets lisensinnehavere den evigvarende rett til å publisere, publisere, vise, redigere, forberede avledede verk av og distribuere innholdet, i enhver form over hele verden, på alle språk og i alle medier, enten det er nå kjent eller senere utviklet , inkludert men ikke begrenset til mobil, internett, TV og dramatiske produksjoner.",
+    "DRONE": "Du representerer og garanterer at det innsendte innholdet, så langt du vet, er en nøyaktig og sannferdig skildring av hendelsene som er skildret deri, og at ingen av nyhetsinnsamlingene dine for innholdet innebar brudd på noen lover eller brudd på rettighetene av en tredjepart, inkludert skade på personer eller eiendom. Du godtar å holde Reuters skadesløs fra og mot eventuelle krav, tap, skader og/eller utgifter, inkludert rimelige advokathonorarer, som oppstår som følge av brudd på representasjonen og garantiene i dette avsnittet."
+  },
+  "ROMANIAN": {
+    "ACCESS_ALL": "Vă rugăm să confirmați că dvs.,{NAME}, declarați și garantați că dețineți {CONTENT} („conținutul) sau că sunteți titularul autorizat al licenței acordate de către deținătorul drepturilor de autor și că nu ați promis sau furnizat conținutul altor persoane sau entități pentru uzul lor exclusiv.\n\nSunteți de acord că Reuters poate să publice și să distribuie conținutul clienților Reuters, ceea ce include alte organizații de știri din întreaga lume, pentru ca, ulterior, aceștia să-l utilizeze, afișeze și publice. Mai exact, dvs. le acordați entității Reuters și licențiaților săi dreptul permanent de a publica, republica, afișa, edita și distribui conținutul și de a pregăti lucrări derivate pe baza acestuia, sub orice formă, în întreaga lume, în orice limbă și prin toate mijloacele de informare în masă care sunt cunoscute în prezent sau care vor apărea pe viitor, inclusiv, dar fără a se limita la producțiile pentru telefoane mobile, pe Internet, de televiziune și de teatru.\n\nDe asemenea, sunteți de acord că Reuters poate să licențieze și să vândă conținutul din arhiva sa on-line altor persoane care pot să publice, să afișeze și să redistribuie conținutul oriunde în lume.",
+    "NO_RESALES": "Vă rugăm să confirmați că dvs.,{NAME}, declarați și garantați că dețineți {CONTENT} („conținutul) sau că sunteți titularul autorizat al licenței acordate de către deținătorul drepturilor de autor și că nu ați promis sau furnizat conținutul altor persoane sau entități pentru uzul lor exclusiv.\n\nSunteți de acord că Reuters poate să publice și să distribuie conținutul clienților Reuters, ceea ce include alte organizații de știri din întreaga lume, pentru ca, ulterior, aceștia să-l utilizeze, afișeze și publice. Mai exact, dvs. le acordați entității Reuters și licențiaților săi dreptul permanent de a publica, republica, afișa, edita și distribui conținutul și de a pregăti lucrări derivate pe baza acestuia, sub orice formă, în întreaga lume, în orice limbă și prin toate mijloacele de informare în masă care sunt cunoscute în prezent sau care vor apărea pe viitor, inclusiv, dar fără a se limita la producțiile pentru telefoane mobile, pe Internet, de televiziune și de teatru."
+  },
+  "SERBIAN": {
+    "ACCESS_ALL": "Vi, {NAME}, izjavljujete i garantujete da ste vlasnik snimka/fotografije {CONTENT} („Sadržaj“) ili da ste ovlašćeni nosilac licence vlasnika autorskih prava i da niste obećali ili dali Sadržaj bilo kom drugom licu ili entitetu za njihovu isključivu upotrebu.\n\nSaglasni ste da Reuters može da objavi i distribuira sadržaj Reutersovim klijentima, koji uključuju druge novinske organizacije širom sveta, za njihovu dalju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu i njegovim nositeljima licence trajno pravo da objavljuju, ponovo objavljuju, prikazuju, uređuju, pripremaju izvedena dela i distribuiraju Sadržaj, u bilo kom obliku širom sveta, na bilo kom jeziku i u bilo kom mediju, bez obzira da li su trenutno poznati ili stvoreni ubuduće, uključujući ali ne ograničavajući se na mobilne, internet, televizijske i dramske produkcije.\n\nDalje ste saglasni da Reuters može da licencira i prodaje Sadržaj u svojoj onlajn arhivi drugima, koji mogu da objavljuju, prikazuju i redistribuiraju sadržaj bilo gde u svetu.",
+    "NO_RESALES": "Vi, {NAME}, izjavljujete i garantujete da ste vlasnik snimka/fotografije {CONTENT} („Sadržaj“) ili da ste ovlašćeni nosilac licence vlasnika autorskih prava i da niste obećali ili dali Sadržaj bilo kom drugom licu ili entitetu za njihovu isključivu upotrebu.\n\nSaglasni ste da Reuters može da objavi i distribuira sadržaj Reutersovim klijentima, koji uključuju druge novinske organizacije širom sveta, za njihovu dalju upotrebu, prikazivanje i objavljivanje.\n\nKonkretno, dajete Reutersu i njegovim nositeljima licence trajno pravo da objavljuju, ponovo objavljuju, prikazuju, uređuju, pripremaju izvedena dela i distribuiraju Sadržaj, u bilo kom obliku širom sveta, na bilo kom jeziku i u bilo kom mediju, bez obzira da li su trenutno poznati ili stvoreni ubuduće, uključujući ali ne ograničavajući se na mobilne, internet, televizijske i dramske produkcije.",
+    "DRONE": "Izjavljujete i garantujete da je dostavljeni sadržaj, prema vašem najboljem saznanju, tačan i istinit prikaz događaja koji su u njemu prikazani i da vaše prikupljanje vesti o sadržaju ni u jednom trenutku nije uključivalo bilo kakvo kršenje zakona ili prava bilo koje treće strane, uključujući povrede osoba ili imovinsku štetu. Saglasni ste da obeštetite i oslobodite Reuters od svih potraživanja, gubitaka, štete i/ili troškova, uključujući razumne advokatske honorare, koji bi proistekli iz vašeg kršenja datih izjava i garancija iz ovog paragrafa."
+  },
+  "HEBREW": {
+    "ACCESS_ALL": "נבקש את אישורך והתחייבותך, שאת/ה {NAME} הבעלים של {CONTENT} (התוכן), או שאת/ה בעל/ת הרישיון המורשה של התוכן, בעל/ת זכויות היוצרים, ולא הבטחת או סיפקת את הסרטון לאף גורם אחר לשימושו הבלעדי.\n\nאת/ה מסכים/ה שרויטרס רשאית לפרסם מחדש ולהפיץ מחדש את התוכן ללקוחות רויטרס, הכוללים ארגוני חדשות אחרים ברחבי העולם, לשימוש נוסף ולפרסום מחדש. באופן ספציפי, את/ה נותן/ת לרויטרס ולבעלי הרישיון שלה את הזכות התמידית לפרסם, לפרסם מחדש, לערוך, להכין יצירות נגזרות של התוכן ולהפיץ אותו בכל צורה ברחבי העולם, בכל השפות ובכל אמצעי התקשורת, בין אם ידועים כעת ובין אם נוצרו להלן, כולל אך לא מוגבל לנייד, אינטרנט, טלוויזיה והפקות דרמטיות.\n\nבנוסף, את/ה מסכים/ה שרויטרס רשאית למכור את התוכן בארכיון המקוון שלה לאחרים שעשויים לפרסם ולהפיץ מחדש את התוכן בכל מקום בעולם.\n\nאם את/ה מסכים/ה לתנאים שלעיל, אנא השב/י ״מסכים/ה״",
+    "NO_RESALES": "נבקש את אישורך והתחייבותך, שאת/ה {NAME} הבעלים של {CONTENT} (התוכן), או שאת/ה בעל/ת הרישיון המורשה של התוכן, בעל/ת זכויות היוצרים, ולא הבטחת או סיפקת את הסרטון לאף גורם אחר לשימושו הבלעדי.\n\nאת/ה מסכים/ה שרויטרס רשאית לפרסם מחדש ולהפיץ מחדש את התוכן ללקוחות רויטרס, הכוללים ארגוני חדשות אחרים ברחבי העולם, לשימוש נוסף ולפרסום מחדש. באופן ספציפי, את/ה נותן/ת לרויטרס ולבעלי הרישיון שלה את הזכות התמידית לפרסם, לפרסם מחדש, לערוך, להכין יצירות נגזרות של התוכן ולהפיץ אותו בכל צורה ברחבי העולם, בכל השפות ובכל אמצעי התקשורת, בין אם ידועים כעת ובין אם נוצרו להלן, כולל אך לא מוגבל לנייד, אינטרנט, טלוויזיה והפקות דרמטיות.\n\nאם את/ה מסכים/ה לתנאים שלעיל, אנא השב/י ״מסכים/ה״"
+  },
+
+};
+    /* ============================================================
+       CONSTANTS & DOM REFS
+       ============================================================ */
+    const PERM_TYPE_LABELS = {
+      ACCESS_ALL:   'Access All (Perpetual Rights)',
+      NO_RESALES:   'No Resales / No Archive (Limited Rights)',
+      TIME_LIMITED: 'Limited Access with Time Limit',
+      DRONE:        'Drone Content Wording'
+    };
+
+    const elLangSelect     = document.getElementById('lang-select');
+    const elLangAvail      = document.getElementById('lang-availability');
+    const elPermTypeInputs = document.querySelectorAll('input[name="perm-type"]');
+    const elDateWrapper    = document.getElementById('date-field-wrapper');
+    const elDateLimit      = document.getElementById('date-limit');
+    const elPersonName     = document.getElementById('person-name');
+    const elContentDesc    = document.getElementById('content-desc');
+    const elBtnGenerate    = document.getElementById('btn-generate');
+    const elGenerateHint   = document.getElementById('generate-hint');
+    const elPreviewEmpty   = document.getElementById('preview-empty');
+    const elPreviewTA      = document.getElementById('preview-textarea');
+    const elPreviewStatus  = document.getElementById('preview-status');
+    const elMetaInfo       = document.getElementById('meta-info');
+    const elMetaLang       = document.getElementById('meta-lang');
+    const elMetaType       = document.getElementById('meta-type');
+    const elMetaTimestamp  = document.getElementById('meta-timestamp');
+    const elReviewCard     = document.getElementById('review-card');
+    const elReviewBanner   = document.getElementById('review-banner');
+    const elReviewIcon     = document.getElementById('review-status-icon');
+    const elChkReviewed    = document.getElementById('chk-reviewed');
+    const elActionsCard    = document.getElementById('actions-card');
+    const elExportLockLabel= document.getElementById('export-lock-label');
+    const elBtnCopy        = document.getElementById('btn-copy');
+    const elBtnPng         = document.getElementById('btn-png');
+    const elBtnClear       = document.getElementById('btn-clear');
+    const elPngPreviewCard = document.getElementById('png-preview-card');
+    const elCanvas         = document.getElementById('permission-canvas');
+    const elToastContainer = document.getElementById('toast-container');
+
+    let currentLang = '', currentPermType = '';
+
+
+    const RTL_LANGUAGES = new Set(['ARABIC','HEBREW','DARI','PASHTO','KURDISH_SORANI']);
+    function applyTextDirection(lang) {
+      const rtl = RTL_LANGUAGES.has(lang);
+      elPreviewTA.dir = rtl ? 'rtl' : 'ltr';
+      elPreviewTA.style.textAlign = rtl ? 'right' : 'left';
+    }
+    /* ============================================================
+       TOAST
+       ============================================================ */
+    function showToast(message, type = 'info', duration = 3000) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+      toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> ${message}`;
+      elToastContainer.appendChild(toast);
+      requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+      setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, duration);
+    }
+
+    /* ============================================================
+       HELPERS
+       ============================================================ */
+    function formatDateForDisplay(isoDate) {
+      if (!isoDate) return '{DATE}';
+      const [y, m, d] = isoDate.split('-');
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      return `${parseInt(d,10)} ${months[parseInt(m,10)-1]} ${y}`;
+    }
+
+    function getTimestamp() {
+      return new Date().toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
+    }
+
+    function getSelectedPermType() {
+      const checked = document.querySelector('input[name="perm-type"]:checked');
+      return checked ? checked.value : '';
+    }
+
+    function getFilename(ext) {
+      const lang = (elLangSelect.value || 'permission').toLowerCase();
+      const type = getSelectedPermType().toLowerCase().replace('_','-') || 'request';
+      return `reuters-permission_${lang}_${type}_${new Date().toISOString().slice(0,10)}.${ext}`;
+    }
+
+    /* ============================================================
+       AVAILABILITY
+       ============================================================ */
+    function updatePermTypeAvailability() {
+      const lang = elLangSelect.value;
+      elPermTypeInputs.forEach(input => {
+        const type = input.value;
+        const card = document.getElementById(`card-${type}`);
+        const hasData = lang && TEMPLATES[lang] && TEMPLATES[lang][type];
+        input.disabled = !hasData;
+        card.classList.toggle('disabled', !hasData);
+        if (!hasData && input.checked) { input.checked = false; currentPermType = ''; }
+      });
+      updateLanguageAvailability(lang);
+      updateGenerateButton();
+    }
+
+    function updateLanguageAvailability(lang) {
+      if (!lang) { elLangAvail.innerHTML = ''; return; }
+      const types = ['ACCESS_ALL','NO_RESALES','TIME_LIMITED','DRONE'];
+      const labels = { ACCESS_ALL:'Access All', NO_RESALES:'No Resales', TIME_LIMITED:'Time Limited', DRONE:'Drone' };
+      elLangAvail.innerHTML = 'Available types: ' + types.map(t => {
+        const has = TEMPLATES[lang] && TEMPLATES[lang][t];
+        return `<span class="avail-dot ${has?'has':'missing'}"></span>${labels[t]}`;
+      }).join(' &nbsp; ');
+    }
+
+    function updateGenerateButton() {
+      const lang = elLangSelect.value, type = getSelectedPermType();
+      elBtnGenerate.disabled = !(lang && type);
+      elGenerateHint.textContent = !lang && !type ? 'Select a language and permission type to generate.'
+        : !lang ? 'Please select a language.'
+        : !type ? 'Please select a permission type.'
+        : 'Ready to generate. Person name and content description are optional.';
+    }
+
+    function toggleDateField() {
+      const show = getSelectedPermType() === 'TIME_LIMITED';
+      elDateWrapper.classList.toggle('visible', show);
+      elDateLimit.required = show;
+      if (!show) elDateLimit.value = '';
+    }
+
+    /* ============================================================
+       HUMAN REVIEW
+       ============================================================ */
+    function updateReviewState() {
+      const approved = elChkReviewed.checked;
+      elReviewBanner.classList.toggle('approved', approved);
+      elReviewIcon.textContent = approved ? '✅' : '⏳';
+      elBtnCopy.disabled = !approved;
+      elBtnPng.disabled  = !approved;
+      elExportLockLabel.style.display = approved ? 'none' : '';
+    }
+
+    elChkReviewed.addEventListener('change', updateReviewState);
+
+    /* ============================================================
+       GENERATE
+       ============================================================ */
+    function generatePermissionText() {
+      const lang = elLangSelect.value, type = getSelectedPermType();
+      if (!lang || !type) { showToast('Please select a language and permission type.', 'error'); return; }
+      const template = TEMPLATES[lang] && TEMPLATES[lang][type];
+      if (!template) { showToast('No template available for this combination.', 'error'); return; }
+
+      const name    = elPersonName.value.trim()  || '{NAME}';
+      const content = elContentDesc.value.trim() || '{CONTENT}';
+      if (type === 'TIME_LIMITED' && !elDateLimit.value) { showToast('Please enter an expiry date.', 'error'); elDateLimit.focus(); return; }
+      const date = elDateLimit.value ? formatDateForDisplay(elDateLimit.value) : '{DATE}';
+
+      const text = template.replace(/\{NAME\}/g, name).replace(/\{CONTENT\}/g, content).replace(/\{DATE\}/g, date);
+      currentLang = lang; currentPermType = type;
+      applyTextDirection(lang);
+
+      elPreviewEmpty.style.display = 'none';
+      elPreviewTA.style.display    = 'block';
+      elPreviewTA.value            = text;
+      elPreviewStatus.className    = 'status-badge ready';
+      elPreviewStatus.textContent  = 'Ready';
+      elMetaInfo.style.display     = 'flex';
+      elMetaLang.textContent       = elLangSelect.options[elLangSelect.selectedIndex].text;
+      elMetaType.textContent       = PERM_TYPE_LABELS[type] || type;
+      elMetaTimestamp.textContent  = getTimestamp();
+
+      elChkReviewed.checked = false;
+      updateReviewState();
+
+      elReviewCard.style.display  = 'block';
+      elActionsCard.style.display = 'block';
+
+      renderPngPreview();
+      elPngPreviewCard.style.display = 'block';
+
+      showToast('Permission text generated successfully.', 'success');
+      if (window.innerWidth < 900) document.querySelector('.panel-output').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* ============================================================
+       PNG CANVAS RENDER
+       ============================================================ */
+    function renderPngPreview() {
+      const text = elPreviewTA.value.trim();
+      if (!text) return;
+      const canvas = elCanvas, ctx = canvas.getContext('2d');
+      const rtl = RTL_LANGUAGES.has(currentLang);
+      const W = 800, PADDING = 64, LOGO_H = 80, LOGO_GAP = 40, FONT_SIZE = 14;
+      const LINE_H = FONT_SIZE * 1.72, MAX_W = W - PADDING * 2;
+
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = W; tmpCanvas.height = 1;
+      const tmpCtx = tmpCanvas.getContext('2d');
+      tmpCtx.font = `${FONT_SIZE}px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`;
+
+      const paragraphs = text.split('\n\n');
+      let totalLines = 0;
+      paragraphs.forEach(para => {
+        para.split('\n').forEach(line => {
+          if (line.trim() === '') { totalLines += 0.5; return; }
+          let cur = '';
+          line.trim().split(/\s+/u).forEach(word => {
+            const test = cur ? `${cur} ${word}` : word;
+            if (tmpCtx.measureText(test).width > MAX_W && cur) { totalLines++; cur = word; } else cur = test;
+          });
+          if (cur) totalLines++;
+        });
+        totalLines += 1;
+      });
+
+      const H = PADDING + LOGO_H + LOGO_GAP + (totalLines * LINE_H) + PADDING;
+      canvas.width = W; canvas.height = Math.max(H, 400);
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, canvas.height);
+      drawReutersLogoCentred(ctx, W, PADDING, LOGO_H);
+
+      ctx.fillStyle = '#212223';
+      ctx.font = `${FONT_SIZE}px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`;
+      ctx.textBaseline = 'top';
+      ctx.direction = rtl ? 'rtl' : 'ltr';
+      ctx.textAlign = rtl ? 'right' : 'left';
+      let y = PADDING + LOGO_H + LOGO_GAP;
+
+      paragraphs.forEach((para, pIdx) => {
+        para.split('\n').forEach(line => {
+          if (line.trim() === '') { y += LINE_H * 0.5; return; }
+          let cur = '';
+          line.trim().split(/\s+/u).forEach(word => {
+            const test = cur ? `${cur} ${word}` : word;
+            if (ctx.measureText(test).width > MAX_W && cur) { if (rtl) ctx.fillText(cur, W - PADDING, y); else drawJustifiedLine(ctx, cur, PADDING, y, MAX_W); y += LINE_H; cur = word; } else cur = test;
+          });
+          if (cur) { ctx.fillText(cur, rtl ? W - PADDING : PADDING, y); y += LINE_H; }
+        });
+        if (pIdx < paragraphs.length - 1) y += LINE_H * 0.6;
+      });
+    }
+
+    function drawReutersLogoCentred(ctx, canvasWidth, topY, logoHeight) {
+      const dotColor = '#D64000', markSize = logoHeight, markRadius = markSize / 2;
+      ctx.font = `bold ${logoHeight * 0.72}px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`;
+      const wordmarkText = 'Reuters', wordmarkW = ctx.measureText(wordmarkText).width;
+      const GAP = logoHeight * 0.28, totalW = markSize + GAP + wordmarkW;
+      const startX = (canvasWidth - totalW) / 2, cx = startX + markRadius, cy = topY + markRadius;
+
+      const outerR = markRadius * 0.82, outerDot = markRadius * 0.115;
+      const outerSizes = [1.35,1.0,1.2,0.85,1.0,0.8,0.9,1.35,1.0,1.2,0.85,1.0,0.8,0.9];
+      for (let i = 0; i < 14; i++) {
+        const angle = (i / 14) * Math.PI * 2 - Math.PI / 2;
+        ctx.beginPath(); ctx.arc(cx + Math.cos(angle)*outerR, cy + Math.sin(angle)*outerR, outerDot*outerSizes[i], 0, Math.PI*2);
+        ctx.fillStyle = dotColor; ctx.fill();
+      }
+      const innerR = markRadius * 0.50, innerDot = markRadius * 0.08;
+      const innerSizes = [1.1,0.85,1.0,0.8,1.1,0.85,1.0,0.8,1.1,0.85,1.0,0.8];
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+        ctx.beginPath(); ctx.arc(cx + Math.cos(angle)*innerR, cy + Math.sin(angle)*innerR, innerDot*innerSizes[i], 0, Math.PI*2);
+        ctx.fillStyle = dotColor; ctx.fill();
+      }
+      ctx.fillStyle = '#212223';
+      ctx.font = `bold ${logoHeight * 0.72}px -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(wordmarkText, startX + markSize + GAP, topY + markRadius);
+    }
+
+    function drawJustifiedLine(ctx, text, x, y, maxWidth) {
+      const words = text.trim().split(/\s+/u);
+      if (words.length <= 1) { ctx.fillText(text, x, y); return; }
+      const totalWordsWidth = words.reduce((sum, w) => sum + ctx.measureText(w).width, 0);
+      const spaceWidth = (maxWidth - totalWordsWidth) / (words.length - 1);
+      let currentX = x;
+      words.forEach((word, i) => {
+        ctx.fillText(word, currentX, y);
+        currentX += ctx.measureText(word).width + (i < words.length - 1 ? spaceWidth : 0);
+      });
+    }
+
+    /* ============================================================
+       COPY
+       ============================================================ */
+    async function copyToClipboard() {
+      const text = elPreviewTA.value.trim();
+      if (!text) { showToast('Nothing to copy.', 'error'); return; }
+      try {
+        await navigator.clipboard.writeText(text);
+        elBtnCopy.innerHTML = '<span class="btn-icon">✅</span>Copied!';
+        showToast('Copied to clipboard.', 'success');
+        setTimeout(() => { elBtnCopy.innerHTML = '<span class="btn-icon">📋</span>Copy Text'; }, 2000);
+      } catch {
+        elPreviewTA.select(); document.execCommand('copy');
+        showToast('Copied using fallback.', 'info');
+      }
+    }
+
+    /* ============================================================
+       PNG DOWNLOAD
+       ============================================================ */
+    function downloadPng() {
+      renderPngPreview();
+      const link    = document.createElement('a');
+      link.download = getFilename('png');
+      link.href     = elCanvas.toDataURL('image/png', 1.0);
+      link.click();
+      showToast(`PNG downloaded as "${link.download}"`, 'success', 4000);
+    }
+
+    /* ============================================================
+       CLEAR
+       ============================================================ */
+    function clearOutput() {
+      elPreviewTA.value = ''; elPreviewTA.style.display = 'none';
+      elPreviewEmpty.style.display = 'flex';
+      elPreviewStatus.className = 'status-badge pending';
+      elPreviewStatus.textContent = 'Awaiting Input';
+      elMetaInfo.style.display = 'none';
+      elReviewCard.style.display = 'none';
+      elActionsCard.style.display = 'none';
+      elPngPreviewCard.style.display = 'none';
+      elChkReviewed.checked = false;
+      updateReviewState();
+      showToast('Output cleared.', 'info');
+    }
+
+
+    const FAV_KEY='reuters_permission_favourites_v1',search=document.getElementById('lang-search'),list=document.getElementById('lang-list'),langStar=document.getElementById('lang-star'),comboStar=document.getElementById('combo-star'),favPanel=document.getElementById('fav-panel'),favToggle=document.getElementById('fav-toggle'),favCount=document.getElementById('fav-count'),comboFavLabel=document.getElementById('combo-fav-label');
+    const permissionSection=document.getElementById('permission-section'),contentSection=document.getElementById('content-section');
+    const favouriteQuestion=document.getElementById('favourite-question'),favouriteYes=document.getElementById('favourite-yes'),favouriteConfirmation=document.getElementById('favourite-confirmation');
+    const STAR='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.8 2.8 5.7 6.3.9-4.6 4.4 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.4 6.3-.9Z"/></svg>',opts=[...elLangSelect.options].filter(o=>o.value).map(o=>({value:o.value,label:o.textContent.trim()}));let filtered=opts.slice(),hi=0;
+    const pl=t=>({ACCESS_ALL:'Access All',NO_RESALES:'No Resales',TIME_LIMITED:'Time Limited',DRONE:'Drone'}[t]||t),ll=k=>(opts.find(x=>x.value===k)||{}).label||k;
+    function loadFav(){let c={languages:[],combinations:[]};try{let r=JSON.parse(localStorage.getItem(FAV_KEY)||'{}');if(Array.isArray(r.languages))r.languages.forEach(k=>{if(TEMPLATES[k]&&!c.languages.includes(k))c.languages.push(k)});if(Array.isArray(r.combinations))r.combinations.forEach(x=>{if(x&&TEMPLATES[x.language]?.[x.permissionType]&&!c.combinations.some(y=>y.language===x.language&&y.permissionType===x.permissionType))c.combinations.push({language:x.language,permissionType:x.permissionType})})}catch{}return c}let fav=loadFav();
+
+    function updateSectionLocks(){
+      const locked=!elLangSelect.value;
+      [permissionSection,contentSection].forEach(section=>{
+        section.classList.toggle('section-locked',locked);
+        section.classList.toggle('section-unlocked',!locked);
+        section.setAttribute('aria-disabled',String(locked));
+        section.inert=locked;
+      });
+    }
+    function saveFav(){try{localStorage.setItem(FAV_KEY,JSON.stringify(fav))}catch{}renderFav();stars()}
+    function setStar(b,on,en,label){b.innerHTML=STAR;b.disabled=!en;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);b.setAttribute('aria-label',label);b.title=label}
+    function stars(){let l=elLangSelect.value,t=getSelectedPermType(),a=fav.languages.includes(l),c=fav.combinations.some(x=>x.language===l&&x.permissionType===t),valid=!!(l&&t&&TEMPLATES[l]?.[t]);setStar(langStar,a,!!l,`${a?'Remove':'Add'} ${l?ll(l):'selected language'} ${a?'from':'to'} favourites`);setStar(comboStar,c,valid,`${c?'Remove':'Add'} ${l&&t?ll(l)+' — '+pl(t):'selected combination'} ${c?'from':'to'} favourites`);comboFavLabel.textContent='';favouriteQuestion.hidden=false;favouriteYes.disabled=!valid||c;favouriteYes.hidden=valid&&c;document.getElementById('favourite-question-text').hidden=valid&&c;favouriteYes.classList.toggle('is-selected',valid&&c);favouriteYes.setAttribute('aria-pressed',String(valid&&c));favouriteConfirmation.textContent=valid&&c?'Added to your favourites.':'';}
+    favouriteYes.addEventListener('click',()=>{const l=elLangSelect.value,t=getSelectedPermType();if(!TEMPLATES[l]?.[t])return;if(!fav.combinations.some(x=>x.language===l&&x.permissionType===t)){fav.combinations.push({language:l,permissionType:t});saveFav()}else stars()});
+    function renderFav(){favPanel.textContent='';favCount.textContent=fav.languages.length+fav.combinations.length;if(!fav.languages.length&&!fav.combinations.length){favPanel.innerHTML='<div class="fav-empty">No favourites yet. Use the star controls to save languages or permission combinations for quick access.</div>';return}function group(title,items,combo){if(!items.length)return;let h=document.createElement('div');h.className='fav-group';h.textContent=title;favPanel.append(h);items.forEach(item=>{let l=combo?item.language:item,t=combo?item.permissionType:'',label=combo?`${ll(l)} — ${pl(t)}`:ll(l),r=document.createElement('div');r.className='fav-item';let a=document.createElement('button');a.className='fav-apply';a.type='button';a.textContent=label;a.onclick=()=>applyFav(l,t);let d=document.createElement('button');d.className='fav-remove';d.type='button';d.textContent='×';d.setAttribute('aria-label',`Remove ${label} from favourites`);d.onclick=()=>removeFav(l,t);r.append(a,d);favPanel.append(r)})}group('Favourite Languages',fav.languages,false);group('Favourite Combinations',fav.combinations,true)}
+    function removeFav(l,t){if(t)fav.combinations=fav.combinations.filter(x=>x.language!==l||x.permissionType!==t);else fav.languages=fav.languages.filter(x=>x!==l);saveFav()}
+    function choose(v){if(!opts.some(x=>x.value===v))return;elLangSelect.value=v;search.value=ll(v);closeList(false);elLangSelect.dispatchEvent(new Event('change',{bubbles:true}))}
+    function applyFav(l,t){choose(l);document.querySelectorAll('input[name="perm-type"]').forEach(x=>x.checked=false);if(t){let r=document.querySelector(`input[name="perm-type"][value="${t}"]`);if(r&&!r.disabled){r.checked=true;r.dispatchEvent(new Event('change',{bubbles:true}))}}toggleDateField();updateGenerateButton();stars();favPanel.hidden=true;favToggle.setAttribute('aria-expanded','false');requestAnimationFrame(()=>{(t?contentSection:permissionSection).scrollIntoView({behavior:'smooth',block:'start'})})}
+    function renderList(){list.textContent='';if(!filtered.length){list.innerHTML='<div class="combo-empty">No languages found</div>';return}filtered.forEach((x,i)=>{let o=document.createElement('div');o.id='lo-'+i;o.className='combo-option'+(i===hi?' hi':'');o.role='option';o.setAttribute('aria-selected',x.value===elLangSelect.value);o.textContent=x.label;o.onmousedown=e=>e.preventDefault();o.onclick=()=>choose(x.value);list.append(o)});search.setAttribute('aria-activedescendant','lo-'+hi)}
+    function openList(all=false){let q=all?'':search.value.toLocaleLowerCase();filtered=opts.filter(x=>x.label.toLocaleLowerCase().includes(q));hi=0;renderList();list.hidden=false;search.setAttribute('aria-expanded','true')}
+    function closeList(restore=true){list.hidden=true;search.setAttribute('aria-expanded','false');if(restore)search.value=elLangSelect.value?ll(elLangSelect.value):''}
+    search.onfocus=()=>openList(true);search.onclick=()=>openList(true);search.oninput=()=>openList(false);search.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&list.hidden){e.preventDefault();openList(e.key===' ')}else if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(list.hidden)openList(true);if(filtered.length){hi=(hi+(e.key==='ArrowDown'?1:-1)+filtered.length)%filtered.length;renderList()}}else if(e.key==='Enter'&&!list.hidden){e.preventDefault();if(filtered[hi])choose(filtered[hi].value)}else if(e.key==='Escape')closeList();else if(e.key==='Tab')closeList()};document.getElementById('lang-clear').onclick=()=>{elLangSelect.value='';search.value='';document.querySelectorAll('input[name="perm-type"]').forEach(x=>x.checked=false);elLangSelect.dispatchEvent(new Event('change',{bubbles:true}));openList(true);search.focus()};langStar.onclick=()=>{let l=elLangSelect.value;if(!l)return;fav.languages.includes(l)?removeFav(l):(fav.languages.push(l),saveFav())};comboStar.onclick=()=>{let l=elLangSelect.value,t=getSelectedPermType();if(!TEMPLATES[l]?.[t])return;fav.combinations.some(x=>x.language===l&&x.permissionType===t)?removeFav(l,t):(fav.combinations.push({language:l,permissionType:t}),saveFav())};favToggle.onclick=()=>{let o=favPanel.hidden;favPanel.hidden=!o;favToggle.setAttribute('aria-expanded',o);if(o)renderFav()};document.addEventListener('click',e=>{if(!document.getElementById('combo').contains(e.target))closeList();if(!document.querySelector('.fav-wrap').contains(e.target)){favPanel.hidden=true;favToggle.setAttribute('aria-expanded','false')}});
+
+    /* ============================================================
+       EVENT LISTENERS
+       ============================================================ */
+    elLangSelect.addEventListener('change',()=>{updatePermTypeAvailability();search.value=elLangSelect.value?ll(elLangSelect.value):'';updateSectionLocks();stars()});
+    elPermTypeInputs.forEach(input => input.addEventListener('change', () => { toggleDateField(); updateGenerateButton(); stars(); }));
+    elBtnGenerate.addEventListener('click', generatePermissionText);
+    elBtnCopy.addEventListener('click', copyToClipboard);
+    elBtnPng.addEventListener('click', downloadPng);
+    elBtnClear.addEventListener('click', clearOutput);
+
+    let debounceTimer;
+    elPreviewTA.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => { if (elPngPreviewCard.style.display !== 'none') renderPngPreview(); }, 600);
+    });
+
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); if (!elBtnGenerate.disabled) generatePermissionText(); }
+    });
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    function init() {
+      updateGenerateButton();
+      try { localStorage.removeItem('reuters_perm_lang'); } catch (_) {}
+      elLangSelect.value='';
+      search.value='';
+      updatePermTypeAvailability();
+      renderFav();updateSectionLocks();stars();
+    }
+
+    init();
+  </script>
+</body>
+</html>
