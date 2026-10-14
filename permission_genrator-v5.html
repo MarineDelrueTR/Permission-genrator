@@ -154,6 +154,9 @@
     .btn-primary:active { background: #a03000; transform: translateY(1px); }
     .btn-secondary { background: var(--tr-light-gray); color: var(--text-secondary); }
     .btn-secondary:hover { background: #d0d0d0; }
+    .btn-success { background: var(--success); color: var(--tr-white); }
+    .btn-success:hover { background: #256b29; }
+    .btn-success:active { background: #1f5c23; transform: translateY(1px); }
     .btn-outline { background: transparent; color: var(--tr-orange); border: 1.5px solid var(--tr-orange); }
     .btn-outline:hover { background: rgba(214,64,0,0.06); }
     .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
@@ -1069,6 +1072,8 @@
       elReviewIcon.textContent = approved ? '✅' : '⏳';
       elBtnCopy.disabled = !approved;
       elBtnPng.disabled  = !approved;
+      elBtnPng.classList.toggle('btn-success', approved);
+      elBtnPng.classList.toggle('btn-secondary', !approved);
       elExportLockLabel.style.display = approved ? 'none' : '';
     }
 
